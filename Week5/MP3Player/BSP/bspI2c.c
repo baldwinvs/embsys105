@@ -1,27 +1,24 @@
 /*
-    bspI2c.c
+bspI2c.c
 
-    Board support for controlling I2C interfaces on NUCLEO-F401RE MCU
+Board support for controlling I2C interfaces on NUCLEO-F401RE MCU
 
-    Source: https://github.com/g4lvanix/STM32F4-workarea/tree/master/Project/I2C-master-example
+Source: https://github.com/g4lvanix/STM32F4-workarea/tree/master/Project/I2C-master-example
 
-    Adapted for University of Washington embedded systems programming certificate
+Adapted for University of Washington embedded systems programming certificate
 
-    2016/2 Nick Strathy adapted it
+2016/2 Nick Strathy adapted it
 */
 
 #include <stm32f4xx.h>
 #include <stm32f4xx_i2c.h>
 #include "bspI2c.h"
 
-
 // Initializes the I2C1 memory mapped registers and enables the interface
 void BspI2C1_init(void){
 
 	GPIO_InitTypeDef GPIO_InitStruct;
 	I2C_InitTypeDef I2C_InitStruct;
-
-    // TODO: Fill in missing code to initialize the I2C1 interface.
 
 	// enable APB1 peripheral clock for I2C1
     RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
@@ -30,13 +27,13 @@ void BspI2C1_init(void){
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
 
 	/* setup SCL and SDA pins
-	 * You can connect the I2C1 functions to two different
-	 * pins:
-	 * 1. SCL on PB6 or PB8
-	 * 2. SDA on PB7 or PB9
-         *
-         * We will use SCL on PB8 and SDA on PB9 below
-	 */
+    * You can connect the I2C1 functions to two different
+    * pins:
+    * 1. SCL on PB6 or PB8
+    * 2. SDA on PB7 or PB9
+    *
+    * We will use SCL on PB8 and SDA on PB9 below
+    */
 
     // Initialize GPIO_InitStruct (declared above) as follows
     // Set pins 8 and 9.
@@ -54,7 +51,6 @@ void BspI2C1_init(void){
     GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 	// Connect I2C1 pins to AF:
-    // Call GPIO_PinAFConfig once to set up pin 8 (SCL), once to set up pin 9 (SDA)
     GPIO_PinAFConfig(GPIOB, GPIO_PinSource8, GPIO_AF_I2C1);
     GPIO_PinAFConfig(GPIOB, GPIO_PinSource9, GPIO_AF_I2C1);
 
@@ -77,7 +73,6 @@ void BspI2C1_init(void){
     I2C_Init(I2C1, &I2C_InitStruct);
 
 	// enable I2C1
-    // Call I2C_Cmd() to enable I2C1
 	I2C_Cmd(I2C1, ENABLE);
 }
 
@@ -164,7 +159,6 @@ uint8_t I2C_read_nack(I2C_TypeDef* I2Cx){
  * releases the bus
  */
 void I2C_stop(I2C_TypeDef* I2Cx){
-
 	// Send I2C1 STOP Condition after last byte has been transmitted
 	I2C_GenerateSTOP(I2Cx, ENABLE);
 	// wait for I2C1 EV8_2 --> byte has been transmitted

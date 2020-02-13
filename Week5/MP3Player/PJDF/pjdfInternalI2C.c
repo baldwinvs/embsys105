@@ -1,11 +1,11 @@
 /*
-    pjdfInternalI2C.c
-    The implementation of the internal PJDF interface pjdfInternal.h targetted for the
-    Inter-Integrated Circuit (I2C)
+pjdfInternalI2C.c
+The implementation of the internal PJDF interface pjdfInternal.h targetted for the
+Inter-Integrated Circuit (I2C)
 
-    Developed for University of Washington embedded systems programming certificate
+Developed for University of Washington embedded systems programming certificate
 
-    2018/12 Nick Strathy wrote/arranged it after a framework by Paul Lever
+2018/12 Nick Strathy wrote/arranged it after a framework by Paul Lever
 */
 
 #include "bsp.h"
@@ -50,9 +50,7 @@ static PjdfErrCode CloseI2C(DriverInternal *pDriver)
 static PjdfErrCode ReadI2C(DriverInternal *pDriver, void* pBuffer, INT32U* pCount)
 {
     PjdfContextI2c *pContext = (PjdfContextI2c*) pDriver->deviceContext;
-    if((void*)0 == pContext) {
-        return PJDF_ERR_DEVICE_NOT_FOUND;
-    }
+    if(NULL == pContext) while(1);
     uint8_t* dataBuf = (uint8_t*)pBuffer;
 
     I2C_start(pContext->i2cMemMap, dataBuf[0], I2C_Direction_Receiver);
@@ -80,9 +78,7 @@ static PjdfErrCode ReadI2C(DriverInternal *pDriver, void* pBuffer, INT32U* pCoun
 static PjdfErrCode WriteI2C(DriverInternal *pDriver, void* pBuffer, INT32U* pCount)
 {
     PjdfContextI2c* pContext = (PjdfContextI2c*)pDriver->deviceContext;
-    if((void*)0 == pContext) {
-        return PJDF_ERR_DEVICE_NOT_FOUND;
-    }
+    if(NULL == pContext) while(1);
     uint8_t* dataBuf = (uint8_t*)pBuffer;
 
     I2C_start(pContext->i2cMemMap, dataBuf[0], I2C_Direction_Transmitter);
@@ -102,7 +98,6 @@ static PjdfErrCode WriteI2C(DriverInternal *pDriver, void* pBuffer, INT32U* pCou
 // Handles the request codes defined in pjdfCtrlI2c.h
 static PjdfErrCode IoctlI2C(DriverInternal *pDriver, INT8U request, void* pArgs, INT32U* pSize)
 {
-    INT8U osErr;
     PjdfContextI2c *pContext = (PjdfContextI2c*) pDriver->deviceContext;
     if (pContext == NULL) while(1);
     switch (request)

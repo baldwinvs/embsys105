@@ -31,7 +31,7 @@ Adafruit_FT6206 touchCtrl = Adafruit_FT6206(); // The touch controller
 
 long MapTouchToScreen(long x, long in_min, long in_max, long out_min, long out_max)
 {
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 
@@ -41,8 +41,8 @@ long MapTouchToScreen(long x, long in_min, long in_max, long out_min, long out_m
 
 /************************************************************************************
 
-   Allocate the stacks for each task.
-   The maximum number of tasks the application can have is defined by OS_MAX_TASKS in os_cfg.h
+Allocate the stacks for each task.
+The maximum number of tasks the application can have is defined by OS_MAX_TASKS in os_cfg.h
 
 ************************************************************************************/
 
@@ -64,8 +64,8 @@ BOOLEAN nextSong = OS_FALSE;
 
 /************************************************************************************
 
-   This task is the initial task running, started by main(). It starts
-   the system tick timer and creates all the other tasks. Then it deletes itself.
+This task is the initial task running, started by main(). It starts
+the system tick timer and creates all the other tasks. Then it deletes itself.
 
 ************************************************************************************/
 void StartupTask(void* pdata)
@@ -127,7 +127,7 @@ static void DrawLcdContents()
 
 /************************************************************************************
 
-   Runs LCD/Touch demo code
+Runs LCD/Touch demo code
 
 ************************************************************************************/
 void LcdTouchDemoTask(void* pdata)
@@ -205,7 +205,7 @@ void LcdTouchDemoTask(void* pdata)
 }
 /************************************************************************************
 
-   Runs MP3 demo code
+Runs MP3 demo code
 
 ************************************************************************************/
 void Mp3DemoTask(void* pdata)
@@ -257,8 +257,8 @@ static void PrintCharToLcd(char c)
 
 /************************************************************************************
 
-   Print a formated string with the given buffer to LCD.
-   Each task should use its own buffer to prevent data corruption.
+Print a formated string with the given buffer to LCD.
+Each task should use its own buffer to prevent data corruption.
 
 ************************************************************************************/
 void PrintToLcdWithBuf(char *buf, int size, char *format, ...)
