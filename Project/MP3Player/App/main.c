@@ -11,14 +11,14 @@ Module Description:
     Entry point for MP3 Player Demo application
 
 Revision History:
-2016/2 Nick Strathy adapted it for NUCLEO-F401RE 
+2016/2 Nick Strathy adapted it for NUCLEO-F401RE
 
 ************************************************************************************/
 
 
 #include "bsp.h"
 #include "print.h"
- 
+
 // Prototype for startup task
 void StartupTask(void* pdata);
 
@@ -46,17 +46,16 @@ Return Value:
 void main() {
 INT8U err;
     Hw_init();
-    I2C1_init();
-    
+
     RETAILMSG(1, ("MP3 Player Demo: Built %s %s.\r\n\r\n",
         __DATE__,
-        __TIME__));  
+        __TIME__));
 
 
     // Initialize the OS
     DEBUGMSG(1, ("main: Running OSInit()...\n"));
     OSInit();
-    
+
     // Initialize driver framework after initializing uCOS since the framework uses uCOS services
     DEBUGMSG(1, ("Initializing PJDF driver framework...\n"));
     InitPjdf();
@@ -85,9 +84,8 @@ INT8U err;
 }
 
 // General purpose delay
-void delay(uint32_t count) 
+void delay(uint32_t count)
 {
     while(count--);
 }
 
-  

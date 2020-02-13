@@ -2733,6 +2733,9 @@
             <name>$PROJ_DIR$\PJDF\pjdf.h</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\PJDF\pjdfCtrlI2C.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\PJDF\pjdfCtrlLcdILI9341.h</name>
         </file>
         <file>
@@ -2746,6 +2749,9 @@
         </file>
         <file>
             <name>$PROJ_DIR$\PJDF\pjdfInternal.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\PJDF\pjdfInternalI2C.c</name>
         </file>
         <file>
             <name>$PROJ_DIR$\PJDF\pjdfInternalLcdILI9341.c</name>

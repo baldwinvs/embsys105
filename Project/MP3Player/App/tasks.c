@@ -10,7 +10,7 @@ Module Description:
 
     The tasks that are executed by the test application.
 
-2016/2 Nick Strathy adapted it for NUCLEO-F401RE 
+2016/2 Nick Strathy adapted it for NUCLEO-F401RE
 
 ************************************************************************************/
 #include <stdarg.h>
@@ -31,7 +31,7 @@ Adafruit_FT6206 touchCtrl = Adafruit_FT6206(); // The touch controller
 
 long MapTouchToScreen(long x, long in_min, long in_max, long out_min, long out_max)
 {
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 
@@ -41,15 +41,15 @@ long MapTouchToScreen(long x, long in_min, long in_max, long out_min, long out_m
 
 /************************************************************************************
 
-   Allocate the stacks for each task.
-   The maximum number of tasks the application can have is defined by OS_MAX_TASKS in os_cfg.h
+Allocate the stacks for each task.
+The maximum number of tasks the application can have is defined by OS_MAX_TASKS in os_cfg.h
 
 ************************************************************************************/
 
 static OS_STK   LcdTouchDemoTaskStk[APP_CFG_TASK_START_STK_SIZE];
 static OS_STK   Mp3DemoTaskStk[APP_CFG_TASK_START_STK_SIZE];
 
-     
+
 // Task prototypes
 void LcdTouchDemoTask(void* pdata);
 void Mp3DemoTask(void* pdata);
@@ -64,8 +64,8 @@ BOOLEAN nextSong = OS_FALSE;
 
 /************************************************************************************
 
-   This task is the initial task running, started by main(). It starts
-   the system tick timer and creates all the other tasks. Then it deletes itself.
+This task is the initial task running, started by main(). It starts
+the system tick timer and creates all the other tasks. Then it deletes itself.
 
 ************************************************************************************/
 void StartupTask(void* pdata)
@@ -82,7 +82,7 @@ void StartupTask(void* pdata)
 
     // Start the system tick
     OS_CPU_SysTickInit(OS_TICKS_PER_SEC);
-    
+
     // Initialize SD card
     PrintWithBuf(buf, PRINTBUFMAX, "Opening handle to SD driver: %s\n", PJDF_DEVICE_ID_SD_ADAFRUIT);
     hSD = Open(PJDF_DEVICE_ID_SD_ADAFRUIT, 0);
@@ -91,11 +91,11 @@ void StartupTask(void* pdata)
 
     PrintWithBuf(buf, PRINTBUFMAX, "Opening SD SPI driver: %s\n", SD_SPI_DEVICE_ID);
     // We talk to the SD controller over a SPI interface therefore
-    // open an instance of that SPI driver and pass the handle to 
+    // open an instance of that SPI driver and pass the handle to
     // the SD driver.
     hSPI = Open(SD_SPI_DEVICE_ID, 0);
     if (!PJDF_IS_VALID_HANDLE(hSPI)) while(1);
-    
+
     length = sizeof(HANDLE);
     pjdfErr = Ioctl(hSD, PJDF_CTRL_SD_SET_SPI_HANDLE, &hSPI, &length);
     if(PJDF_IS_ERROR(pjdfErr)) while(1);
@@ -116,10 +116,10 @@ static void DrawLcdContents()
 {
 	char buf[BUFSIZE];
     lcdCtrl.fillScreen(ILI9341_BLACK);
-    
+
     // Print a message on the LCD
     lcdCtrl.setCursor(40, 60);
-    lcdCtrl.setTextColor(ILI9341_WHITE);  
+    lcdCtrl.setTextColor(ILI9341_WHITE);
     lcdCtrl.setTextSize(2);
     PrintToLcdWithBuf(buf, BUFSIZE, "Hello World!");
 
@@ -127,7 +127,7 @@ static void DrawLcdContents()
 
 /************************************************************************************
 
-   Runs LCD/Touch demo code
+Runs LCD/Touch demo code
 
 ************************************************************************************/
 void LcdTouchDemoTask(void* pdata)
@@ -145,7 +145,7 @@ void LcdTouchDemoTask(void* pdata)
 
 	PrintWithBuf(buf, BUFSIZE, "Opening LCD SPI driver: %s\n", LCD_SPI_DEVICE_ID);
     // We talk to the LCD controller over a SPI interface therefore
-    // open an instance of that SPI driver and pass the handle to 
+    // open an instance of that SPI driver and pass the handle to
     // the LCD driver.
     HANDLE hSPI = Open(LCD_SPI_DEVICE_ID, 0);
     if (!PJDF_IS_VALID_HANDLE(hSPI)) while(1);
@@ -159,48 +159,53 @@ void LcdTouchDemoTask(void* pdata)
     lcdCtrl.begin();
 
     DrawLcdContents();
-    
+
     PrintWithBuf(buf, BUFSIZE, "Initializing FT6206 touchscreen controller\n");
+    HANDLE hI2C1 = Open(PJDF_DEVICE_ID_I2C1, 0);
+    if(!PJDF_IS_VALID_HANDLE(hI2C1)) while(1);
+    touchCtrl.setPjdfHandle(hI2C1);
     if (! touchCtrl.begin(40)) {  // pass in 'sensitivity' coefficient
         PrintWithBuf(buf, BUFSIZE, "Couldn't start FT6206 touchscreen controller\n");
         while (1);
     }
-    
+
     int currentcolor = ILI9341_RED;
 
-    while (1) { 
+    while (1) {
         boolean touched = false;
-        
+
         // TODO: Poll for a touch on the touch panel
-        // <Your code here>
+        if(touchCtrl.touched()) {
+            touched = true;
+        }
         // <hint: Call a function provided by touchCtrl
-        
+
         if (! touched) {
             OSTimeDly(5);
             continue;
         }
-        
+
         TS_Point rawPoint;
-       
-        // TODO: Retrieve a point  
-        // <Your code here>
+
+        // TODO: Retrieve a point
+        rawPoint = touchCtrl.getPoint();
 
         if (rawPoint.x == 0 && rawPoint.y == 0)
         {
             continue; // usually spurious, so ignore
         }
-        
+
         // transform touch orientation to screen orientation.
         TS_Point p = TS_Point();
         p.x = MapTouchToScreen(rawPoint.x, 0, ILI9341_TFTWIDTH, ILI9341_TFTWIDTH, 0);
         p.y = MapTouchToScreen(rawPoint.y, 0, ILI9341_TFTHEIGHT, ILI9341_TFTHEIGHT, 0);
-        
+
         lcdCtrl.fillCircle(p.x, p.y, PENRADIUS, currentcolor);
     }
 }
 /************************************************************************************
 
-   Runs MP3 demo code
+Runs MP3 demo code
 
 ************************************************************************************/
 void Mp3DemoTask(void* pdata)
@@ -209,7 +214,7 @@ void Mp3DemoTask(void* pdata)
     INT32U length;
 
     OSTimeDly(2000); // Allow other task to initialize LCD before we use it.
-    
+
 	char buf[BUFSIZE];
 	PrintWithBuf(buf, BUFSIZE, "Mp3DemoTask: starting\n");
 
@@ -220,7 +225,7 @@ void Mp3DemoTask(void* pdata)
 
 	PrintWithBuf(buf, BUFSIZE, "Opening MP3 SPI driver: %s\n", MP3_SPI_DEVICE_ID);
     // We talk to the MP3 decoder over a SPI interface therefore
-    // open an instance of that SPI driver and pass the handle to 
+    // open an instance of that SPI driver and pass the handle to
     // the MP3 driver.
     HANDLE hSPI = Open(MP3_SPI_DEVICE_ID, 0);
     if (!PJDF_IS_VALID_HANDLE(hSPI)) while(1);
@@ -233,12 +238,12 @@ void Mp3DemoTask(void* pdata)
 	PrintWithBuf(buf, BUFSIZE, "Starting MP3 device test\n");
     Mp3Init(hMp3);
     int count = 0;
-    
+
     while (1)
     {
         OSTimeDly(500);
         PrintWithBuf(buf, BUFSIZE, "Begin streaming sound file  count=%d\n", ++count);
-        Mp3Stream(hMp3, (INT8U*)Train_Crossing, sizeof(Train_Crossing)); 
+        Mp3Stream(hMp3, (INT8U*)Train_Crossing, sizeof(Train_Crossing));
         PrintWithBuf(buf, BUFSIZE, "Done streaming sound file  count=%d\n", count);
     }
 }
@@ -252,8 +257,8 @@ static void PrintCharToLcd(char c)
 
 /************************************************************************************
 
-   Print a formated string with the given buffer to LCD.
-   Each task should use its own buffer to prevent data corruption.
+Print a formated string with the given buffer to LCD.
+Each task should use its own buffer to prevent data corruption.
 
 ************************************************************************************/
 void PrintToLcdWithBuf(char *buf, int size, char *format, ...)
