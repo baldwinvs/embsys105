@@ -12,6 +12,14 @@ Developed for University of Washington embedded systems programming certificate
 #include "pjdf.h"
 #include "pjdfInternal.h"
 
+#include "print.h"
+
+#ifndef BUFSIZE
+#define BUFSIZE 256
+#endif
+
+static char buf[BUFSIZE];
+
 // Control registers etc for I2C hardware
 typedef struct _PjdfContextI2C
 {
@@ -78,7 +86,10 @@ static PjdfErrCode ReadI2C(DriverInternal *pDriver, void* pBuffer, INT32U* pCoun
 static PjdfErrCode WriteI2C(DriverInternal *pDriver, void* pBuffer, INT32U* pCount)
 {
     PjdfContextI2c* pContext = (PjdfContextI2c*)pDriver->deviceContext;
-    if(NULL == pContext) while(1);
+    if(NULL == pContext) {
+        PrintWithBuf(buf, BUFSIZE, "I2C1 driver context is NULL!\n");
+        return PJDF_ERR_DEVICE_NOT_FOUND;
+    }
     uint8_t* dataBuf = (uint8_t*)pBuffer;
 
     I2C_start(pContext->i2cMemMap, dataBuf[0], I2C_Direction_Transmitter);
@@ -141,6 +152,7 @@ PjdfErrCode InitI2C(DriverInternal *pDriver, char *pName)
     pDriver->Ioctl = IoctlI2C;
 
     pDriver->initialized = OS_TRUE;
+
     return PJDF_ERR_NONE;
 }
 

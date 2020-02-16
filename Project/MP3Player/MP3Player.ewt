@@ -2430,6 +2430,27 @@
     <group>
         <name>App</name>
         <group>
+            <name>Tasks</name>
+            <file>
+                <name>$PROJ_DIR$\App\Tasks\commandHandler.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\App\Tasks\lcdHandler.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\App\Tasks\streaming.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\App\Tasks\tasks.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\App\Tasks\tasks.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\App\Tasks\touchPolling.c</name>
+            </file>
+        </group>
+        <group>
             <name>uCOS</name>
             <file>
                 <name>$PROJ_DIR$\App\uCOS\app_cfg.h</name>
@@ -2452,9 +2473,6 @@
         </file>
         <file>
             <name>$PROJ_DIR$\App\shell.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\App\tasks.c</name>
         </file>
     </group>
     <group>
@@ -2481,9 +2499,6 @@
                         <name>$PROJ_DIR$\Arduino\SD\src\utility\SdFatmainpage.h</name>
                     </file>
                     <file>
-                        <name>$PROJ_DIR$\Arduino\SD\src\utility\SdFatUtil.h</name>
-                    </file>
-                    <file>
                         <name>$PROJ_DIR$\Arduino\SD\src\utility\SdFile.cpp</name>
                     </file>
                     <file>
@@ -2507,6 +2522,21 @@
                 </file>
             </group>
         </group>
+    </group>
+    <group>
+        <name>Bitmaps</name>
+        <file>
+            <name>$PROJ_DIR$\Bitmaps\play.bmp</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\Bitmaps\play_bmp.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\Bitmaps\stop.bmp</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\Bitmaps\stop_bmp.h</name>
+        </file>
     </group>
     <group>
         <name>BSP</name>
@@ -2641,6 +2671,15 @@
         </file>
     </group>
     <group>
+        <name>GUI</name>
+        <file>
+            <name>$PROJ_DIR$\GUI\Buttons.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\GUI\InputCommands.h</name>
+        </file>
+    </group>
+    <group>
         <name>Micrium</name>
         <group>
             <name>Software</name>
@@ -2714,6 +2753,21 @@
     </group>
     <group>
         <name>MP3data</name>
+        <file>
+            <name>$PROJ_DIR$\MP3data\check_please.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\MP3data\dogen.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\MP3data\dogen1_2.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\MP3data\dogen_2.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\MP3data\dogen_full.h</name>
+        </file>
         <file>
             <name>$PROJ_DIR$\MP3data\GenerateMp3Header.ps1</name>
         </file>

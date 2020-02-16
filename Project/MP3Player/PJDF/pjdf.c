@@ -19,6 +19,12 @@ static char *DeviceDriverIDs [] =
 
 #define MAXDEVICES (sizeof(DeviceDriverIDs)/sizeof(char*))
 
+#ifndef BUFSIZE
+#define BUFSIZE 256
+#endif
+
+static char buf[BUFSIZE];
+extern void PrintToLcdWithBuf(char *buf, int size, char *format, ...);
 
 // PJDF DEVELOPER TODO: add the reference to your driver's pName and Init() function here:
 // IMPORTANT: maintain the same order as in PJDF_DEVICE_IDS
@@ -53,7 +59,11 @@ HANDLE Open(char *pName, INT8U flags)
 
             // Enter a critical section to increment the device reference count and call device specific Open()
             OSSemPend(pDriver->sem, 0, &osErr);
-            if (osErr != OS_ERR_NONE) while (1);
+            if (osErr != OS_ERR_NONE) {
+                PrintWithBuf(buf, BUFSIZE, "FAILED ON SEM PEND: \"%s\" IN PJDF!\n", pName);
+                retval = PJDF_ERR_DEVICE_NOT_FOUND; // cause a failure when checking if handle is ok
+                break;
+            }
             if (pDriver->refCount < pDriver->maxRefCount)
             {
                 pDriver->refCount += 1;

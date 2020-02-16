@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-    Powershell script to read an input file and dump it to standard output  
-    in the form of a C byte array constant where each byte 
+    Powershell script to read an input file and dump it to standard output
+    in the form of a C byte array constant where each byte
     in the input is printed in hexadecimal form like 0x##
 
     Note: In Powershell, to get the output in ASCII format you have to pipe it to Out-File like this:
@@ -43,7 +43,7 @@ while ($stream.Position -lt $bytesToRead)
         # handle case where last line is not full
         $bytesPerLine = $bytesToRead - $stream.Position
     }
-    
+
     $byteCount = $stream.Read($buffer, 0, $bytesPerLine)
     if (!$startedWriting -and $byteCount -gt 0)
     {

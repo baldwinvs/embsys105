@@ -65,10 +65,10 @@ void PrintString(char *ptr) {
 }
 
 // Prints a string using the given PrintChar() function which implements
-// the necessary code to print the each char of the given string to a 
+// the necessary code to print the each char of the given string to a
 // particular device.
 void PrintStringToDevice(void (*PrintCharFunc)(char c), char *ptr) {
-    
+
   if (ptr==0 || *ptr==0) return;
   if (PrintCharFunc==0) while(1);
 
