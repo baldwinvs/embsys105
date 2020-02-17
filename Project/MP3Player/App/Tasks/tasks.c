@@ -49,6 +49,7 @@ void PrintToLcdWithBuf(char *buf, int size, char *format, ...);
 // Globals
 BOOLEAN nextSong = OS_FALSE;
 
+extern OS_EVENT* semPrint;
 OS_FLAG_GRP *rxFlags = 0;       // Event flags for synchronizing mailbox messages
 OS_EVENT * touch2CmdHandler;
 
@@ -75,10 +76,10 @@ void StartupTask(void* pdata)
         PrintWithBuf(buf, BUFSIZE, "StartupTask: failed to create rxFlags with error %d\n", (INT32U)err);
     }
 
-    PjdfErrCode pjdfErr;
-    INT32U length;
-    static HANDLE hSD = 0;
-    static HANDLE hSPI = 0;
+    semPrint = OSSemCreate(1);
+    if(NULL == semPrint) {
+        PrintWithBuf(buf, BUFSIZE, "StartupTask: failed to create semPrint\n");
+    }
 
 	PrintWithBuf(buf, BUFSIZE, "StartupTask: Begin\n");
 	PrintWithBuf(buf, BUFSIZE, "StartupTask: Starting timer tick\n");
@@ -86,28 +87,11 @@ void StartupTask(void* pdata)
     // Start the system tick
     OS_CPU_SysTickInit(OS_TICKS_PER_SEC);
 
-    // Initialize SD card
-    PrintWithBuf(buf, PRINTBUFMAX, "Opening handle to SD driver: %s\n", PJDF_DEVICE_ID_SD_ADAFRUIT);
-    hSD = Open(PJDF_DEVICE_ID_SD_ADAFRUIT, 0);
-    if (!PJDF_IS_VALID_HANDLE(hSD)) while(1);
-
-
-    PrintWithBuf(buf, PRINTBUFMAX, "Opening SD SPI driver: %s\n", SD_SPI_DEVICE_ID);
-    // We talk to the SD controller over a SPI interface therefore
-    // open an instance of that SPI driver and pass the handle to
-    // the SD driver.
-    hSPI = Open(SD_SPI_DEVICE_ID, 0);
-    if (!PJDF_IS_VALID_HANDLE(hSPI)) while(1);
-
-    length = sizeof(HANDLE);
-    pjdfErr = Ioctl(hSD, PJDF_CTRL_SD_SET_SPI_HANDLE, &hSPI, &length);
-    if(PJDF_IS_ERROR(pjdfErr)) while(1);
-
     // Create the tasks
     PrintWithBuf(buf, BUFSIZE, "StartupTask: Creating the application tasks\n");
 
     // The maximum number of tasks the application can have is defined by OS_MAX_TASKS in os_cfg.h
-//    OSTaskCreate(StreamingTask, (void*)0, &StreamingTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_STREAM_PRIO);
+    OSTaskCreate(StreamingTask, (void*)0, &StreamingTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_STREAM_PRIO);
     OSTaskCreate(TouchPollingTask, (void*)0, &TouchPollingTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_TOUCH_PRIO);
     OSTaskCreate(CommandHandlerTask, (void*)0, &CommandHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_COMMAND_PRIO);
     OSTaskCreate(LcdHandlerTask, (void*)0, &LcdHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_LCD_PRIO);

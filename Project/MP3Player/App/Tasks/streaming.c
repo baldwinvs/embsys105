@@ -45,6 +45,22 @@ void StreamingTask(void* pData)
     pjdfErr = Ioctl(hMp3, PJDF_CTRL_MP3_SET_SPI_HANDLE, &hSPI, &length);
     if(PJDF_IS_ERROR(pjdfErr)) while(1);
 
+    // Initialize SD card
+    PrintWithBuf(buf, PRINTBUFMAX, "Opening handle to SD driver: %s\n", PJDF_DEVICE_ID_SD_ADAFRUIT);
+    HANDLE hSD = Open(PJDF_DEVICE_ID_SD_ADAFRUIT, 0);
+    if (!PJDF_IS_VALID_HANDLE(hSD)) while(1);
+
+    PrintWithBuf(buf, PRINTBUFMAX, "Opening SD SPI driver: %s\n", SD_SPI_DEVICE_ID);
+    // We talk to the SD controller over a SPI interface therefore
+    // open an instance of that SPI driver and pass the handle to
+    // the SD driver.
+    hSPI = Open(SD_SPI_DEVICE_ID, 0);
+    if (!PJDF_IS_VALID_HANDLE(hSPI)) while(1);
+
+    length = sizeof(HANDLE);
+    pjdfErr = Ioctl(hSD, PJDF_CTRL_SD_SET_SPI_HANDLE, &hSPI, &length);
+    if(PJDF_IS_ERROR(pjdfErr)) while(1);
+
     // Send initialization data to the MP3 decoder and run a test
 	PrintWithBuf(buf, BUFSIZE, "Starting MP3 device test\n");
     Mp3Init(hMp3);
@@ -54,7 +70,7 @@ void StreamingTask(void* pData)
 //    const size_t fileSize = sizeof(CheckPlease);
 //    const size_t fileSize = sizeof(Dogen);
 //    const size_t fileSize = sizeof(Dogen_2);
-    const size_t fileSize = sizeof(Dogen1_2);
+//    const size_t fileSize = sizeof(Dogen1_2);
     while (1)
     {
         OSTimeDly(500);
@@ -63,7 +79,8 @@ void StreamingTask(void* pData)
 //        Mp3Stream(hMp3, (INT8U*)CheckPlease, sizeof(CheckPlease));
 //        Mp3Stream(hMp3, (INT8U*)Dogen, sizeof(Dogen));
 //        Mp3Stream(hMp3, (INT8U*)Dogen_2, fileSize);
-        Mp3Stream(hMp3, (INT8U*)Dogen1_2, fileSize);
+//        Mp3Stream(hMp3, (INT8U*)Dogen1_2, fileSize);
+        Mp3StreamSDFile(hMp3, hSD, "dogen000.mp3");
         PrintWithBuf(buf, BUFSIZE, "Done streaming sound file  count=%d\n", count);
     }
 }

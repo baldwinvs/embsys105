@@ -47,6 +47,11 @@ void main() {
 INT8U err;
     Hw_init();
 
+    INT32U count = 0;
+    while(count < 1000000) {
+        ++count;
+    }
+
     RETAILMSG(1, ("MP3 Player Demo: Built %s %s.\r\n\r\n",
         __DATE__,
         __TIME__));
