@@ -11,8 +11,13 @@
 #include "print.h"
 #include "SD.h"
 
-void delay(uint32_t time);
+#ifndef BUFSIZE
+#define BUFSIZE 256
+#endif
 
+static char buf[BUFSIZE];
+
+void delay(uint32_t time);  //todo: move this to main.c
 
 static File dataFile;
 
@@ -62,24 +67,31 @@ void Mp3StreamSDFile(HANDLE hMp3, HANDLE hSD, char *pFilename)
     }
 
     INT8U mp3Buf[MP3_DECODER_BUF_SIZE];
-    INT32U iBufPos = 0;
+    INT32U bytesRead = 0;
     nextSong = OS_FALSE;
-    while (dataFile.available())
-    {
-        iBufPos = 0;
-        while (dataFile.available() && iBufPos < MP3_DECODER_BUF_SIZE)
-        {
-            mp3Buf[iBufPos] = dataFile.read();
-            //delay(30);
-            iBufPos++;
-        }
 
-        Write(hMp3, mp3Buf, &iBufPos);
-        //OSTimeDly(1);
+    INT32S bytesAvailable = dataFile.available();
+    while (bytesAvailable)
+    {
+        bytesRead = dataFile.read(mp3Buf, MP3_DECODER_BUF_SIZE);
+
+        if(-1 == bytesRead) {
+            PrintWithBuf(buf, BUFSIZE, "Error reading data file!\nPossible errors include:\n");
+            PrintWithBuf(buf, BUFSIZE, "\tread() called before a file has been opened,\n"
+                                       "\tcorrupt file system,\n"
+                                       "\tor an I/O error has occurred.\n");
+            break;
+        }
+        Write(hMp3, mp3Buf, &bytesRead);
+
+        //TODO: implement file changing
         if (nextSong)
         {
             break;
         }
+
+        //update the bytes available
+        bytesAvailable = dataFile.available();
     }
 
     dataFile.close();

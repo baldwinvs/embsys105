@@ -4,7 +4,7 @@
     VS1053 MP3 decoder.
 
     Developed for University of Washington embedded systems programming certificate
-    
+
     2016/2 Nick Strathy wrote/arranged it after a framework by Paul Lever
 */
 
@@ -29,7 +29,7 @@ static const INT32U SizeofMp3SpiDataRate = sizeof(Mp3SpiDataRate);
 // Nothing to do.
 static PjdfErrCode OpenMP3(DriverInternal *pDriver, INT8U flags)
 {
-    return PJDF_ERR_NONE; 
+    return PJDF_ERR_NONE;
 }
 
 // CloseMP3
@@ -42,8 +42,8 @@ static PjdfErrCode CloseMP3(DriverInternal *pDriver)
 
 // ReadMP3
 // Writes the contents of the buffer to the given device, and concurrently
-// gets the resulting data back from the device via full duplex SPI. 
-// Before writing, select the VS1053 command interface by passing  
+// gets the resulting data back from the device via full duplex SPI.
+// Before writing, select the VS1053 command interface by passing
 // he following request to Ioctl():
 //     PJDF_CTRL_MP3_SELECT_COMMAND
 //
@@ -59,17 +59,17 @@ static PjdfErrCode ReadMP3(DriverInternal *pDriver, void* pBuffer, INT32U* pCoun
     PjdfErrCode retval;
     PjdfContextMp3VS1053 *pContext = (PjdfContextMp3VS1053*) pDriver->deviceContext;
     HANDLE hSPI = pContext->spiHandle;
-    
+
     retval = Ioctl(hSPI, PJDF_CTRL_SPI_WAIT_FOR_LOCK, 0, 0);   // wait for exclusive access
     if (retval != PJDF_ERR_NONE) while(1);
-    
+
     // adjust SPI transmission rate
-    retval = Ioctl(hSPI, PJDF_CTRL_SPI_SET_DATARATE, (void*)&Mp3SpiDataRate, (INT32U*)&SizeofMp3SpiDataRate); 
+    retval = Ioctl(hSPI, PJDF_CTRL_SPI_SET_DATARATE, (void*)&Mp3SpiDataRate, (INT32U*)&SizeofMp3SpiDataRate);
     if (retval != PJDF_ERR_NONE) while(1);
 
     // Wait for device ready
     while (!GPIO_ReadInputDataBit(MP3_VS1053_DREQ_GPIO, MP3_VS1053_DREQ_GPIO_Pin));
-    
+
     switch (pContext->chipSelect) {
     case 0: /* send command */
         MP3_VS1053_MCS_ASSERT(); // assert command chip-select
@@ -87,7 +87,7 @@ static PjdfErrCode ReadMP3(DriverInternal *pDriver, void* pBuffer, INT32U* pCoun
 
 // WriteMP3
 // Writes the contents of the buffer to the given device.
-// Before writing, select the VS1053 command or data interface by passing one 
+// Before writing, select the VS1053 command or data interface by passing one
 // of the following requests to Ioctl():
 //     PJDF_CTRL_MP3_SELECT_COMMAND
 //     PJDF_CTRL_MP3_SELECT_DATA
@@ -103,30 +103,30 @@ static PjdfErrCode WriteMP3(DriverInternal *pDriver, void* pBuffer, INT32U* pCou
     PjdfErrCode retval;
     PjdfContextMp3VS1053 *pContext = (PjdfContextMp3VS1053*) pDriver->deviceContext;
     HANDLE hSPI = pContext->spiHandle;
-    
+
     retval = Ioctl(hSPI, PJDF_CTRL_SPI_WAIT_FOR_LOCK, 0, 0); // wait for exclusive access
     if (retval != PJDF_ERR_NONE) while(1);
-    
+
     // Wait for device ready
     while (!GPIO_ReadInputDataBit(MP3_VS1053_DREQ_GPIO, MP3_VS1053_DREQ_GPIO_Pin))
     {
         // Device not ready so release it and delay before trying again
         retval = Ioctl(hSPI, PJDF_CTRL_SPI_RELEASE_LOCK, 0, 0);
         if (retval != PJDF_ERR_NONE) while(1);
-        
-        OSTimeDly(5); // can optimize this to handle highest audio bit rate while allowing delay for other tasks 
-        
+
+        OSTimeDly(5); // can optimize this to handle highest audio bit rate while allowing delay for other tasks
+
         retval = Ioctl(hSPI, PJDF_CTRL_SPI_WAIT_FOR_LOCK, 0, 0); // wait for exclusive access
         if (retval != PJDF_ERR_NONE) while(1);
     }
-        
-        
-    
+
+
+
     // adjust SPI transmission rate
-    retval = Ioctl(hSPI, PJDF_CTRL_SPI_SET_DATARATE, (void*)&Mp3SpiDataRate, (INT32U*)&SizeofMp3SpiDataRate); 
+    retval = Ioctl(hSPI, PJDF_CTRL_SPI_SET_DATARATE, (void*)&Mp3SpiDataRate, (INT32U*)&SizeofMp3SpiDataRate);
     if (retval != PJDF_ERR_NONE) while(1);
 
-    
+
     switch (pContext->chipSelect) {
     case 0: /* send command */
         MP3_VS1053_MCS_ASSERT(); // assert command chip-select
@@ -189,23 +189,23 @@ static PjdfErrCode IoctlMP3(DriverInternal *pDriver, INT8U request, void* pArgs,
 PjdfErrCode InitMp3VS1053(DriverInternal *pDriver, char *pName)
 {
     if (strcmp (pName, pDriver->pName) != 0) while(1); // pName should have been initialized in driversInternal[] declaration
-    
-    // Initialize semaphore for serializing operations on the device 
-    pDriver->sem = OSSemCreate(1); 
+
+    // Initialize semaphore for serializing operations on the device
+    pDriver->sem = OSSemCreate(1);
     if (pDriver->sem == NULL) while (1);  // not enough semaphores available
     pDriver->refCount = 0; // number of Open handles to the device
     pDriver->maxRefCount = 1; // only one open handle allowed
     pDriver->deviceContext = &mp3VS1053Context;
-    
+
     BspMp3InitVS1053(); // Initialize related GPIO
-  
+
     // Assign implemented functions to the interface pointers
     pDriver->Open = OpenMP3;
     pDriver->Close = CloseMP3;
     pDriver->Read = ReadMP3;
     pDriver->Write = WriteMP3;
     pDriver->Ioctl = IoctlMP3;
-    
+
     pDriver->initialized = OS_TRUE;
     return PJDF_ERR_NONE;
 }

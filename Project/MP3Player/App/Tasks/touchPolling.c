@@ -68,6 +68,7 @@ void TouchPollingTask(void* pData)
     }
 
     uint32_t output = 1;
+    const uint32_t delayTicks = OS_TICKS_PER_SEC / 12;
 
     while (1) {
         boolean touched = false;
@@ -80,7 +81,7 @@ void TouchPollingTask(void* pData)
         }
 
         if(!touched) {
-            OSTimeDly(5);
+            OSTimeDly(delayTicks);
             continue;
         }
 
@@ -97,6 +98,10 @@ void TouchPollingTask(void* pData)
         TS_Point p = TS_Point();
         p.x = MapTouchToScreen(rawPoint.x, 0, ILI9341_TFTWIDTH, ILI9341_TFTWIDTH, 0);
         p.y = MapTouchToScreen(rawPoint.y, 0, ILI9341_TFTHEIGHT, ILI9341_TFTHEIGHT, 0);
+
+        while(touchCtrl.touched()) {
+            OSTimeDly(delayTicks);
+        }
 
         if(1 == touched && 1 == output) {
             output = 0;

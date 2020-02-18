@@ -4,7 +4,7 @@
     Board support for controlling Adafruit Music Maker VS1053 MP3 decoder shield via NUCLEO-F401RE MCU
 
     Developed for University of Washington embedded systems programming certificate
-    
+
     2016/2 Nick Strathy wrote/arranged it
 */
 

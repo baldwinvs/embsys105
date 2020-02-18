@@ -24,7 +24,7 @@ void StreamingTask(void* pData)
     PjdfErrCode pjdfErr;
     INT32U length;
 
-    OSTimeDly(2000); // Allow other task to initialize LCD before we use it.
+    OSTimeDly(OS_TICKS_PER_SEC * 2); // Allow other task to initialize LCD before we use it.
 
 	char buf[BUFSIZE];
 	PrintWithBuf(buf, BUFSIZE, "StreamingTask: starting\n");
@@ -66,21 +66,17 @@ void StreamingTask(void* pData)
     Mp3Init(hMp3);
     int count = 0;
 
-//    const size_t fileSize = sizeof(Train_Crossing);
-//    const size_t fileSize = sizeof(CheckPlease);
-//    const size_t fileSize = sizeof(Dogen);
-//    const size_t fileSize = sizeof(Dogen_2);
-//    const size_t fileSize = sizeof(Dogen1_2);
     while (1)
     {
-        OSTimeDly(500);
         PrintWithBuf(buf, BUFSIZE, "Begin streaming sound file  count=%d\n", ++count);
-//        Mp3Stream(hMp3, (INT8U*)Train_Crossing, sizeof(Train_Crossing));
-//        Mp3Stream(hMp3, (INT8U*)CheckPlease, sizeof(CheckPlease));
-//        Mp3Stream(hMp3, (INT8U*)Dogen, sizeof(Dogen));
-//        Mp3Stream(hMp3, (INT8U*)Dogen_2, fileSize);
-//        Mp3Stream(hMp3, (INT8U*)Dogen1_2, fileSize);
-        Mp3StreamSDFile(hMp3, hSD, "dogen000.mp3");
+
+        Mp3StreamSDFile(hMp3, hSD, "dogen.mp3");
+        Mp3StreamSDFile(hMp3, hSD, "Oblivion.mp3");
+
         PrintWithBuf(buf, BUFSIZE, "Done streaming sound file  count=%d\n", count);
+        OSTimeDly(OS_TICKS_PER_SEC * 3);
+
+        //STATE == stop: wait for play command
+        //STATE == play:
     }
 }
