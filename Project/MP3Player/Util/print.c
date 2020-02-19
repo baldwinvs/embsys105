@@ -17,9 +17,13 @@ HISTORY     :
 /* Private define ------------------------------------------------------------*/
 #define BUFFER_LENGTH   20
 
+//#if !BUFSIZE
+//#define BUFSIZE 256
+//#endif
+
 /* Private variables ---------------------------------------------------------*/
 char buffer[BUFFER_LENGTH];
-OS_EVENT * semPrint;
+extern OS_EVENT * semPrint;
 
 void PrintHex(uint32_t u32) {
 uint32_t   u32Mask  = 0xF0000000;
@@ -103,8 +107,10 @@ void PrintToDeviceWithBuf(void (*PrintCharFunc)(char c), char *buf, int size, ch
    Each task should use its own buffer to prevent data corruption.
 
 ************************************************************************************/
-void PrintWithBuf(char *buf, int size, char *format, ...)
+void PrintFormattedString(char *format, ...)
 {
+//    static const size_t BUFSIZE = 256;
+    static char buf[BUFSIZE];
 	INT8U err;
     va_list args;
     va_start(args, format);
@@ -113,7 +119,7 @@ void PrintWithBuf(char *buf, int size, char *format, ...)
     // This check is only useful if there is a timeout, otherwise the running task should pend until the
     // binary semaphore is taken and the error should always be none.
     if(OS_ERR_NONE == err) {
-        PrintToDeviceWithBuf(PrintByte, buf, size, format, args);
+        PrintToDeviceWithBuf(PrintByte, buf, BUFSIZE, format, args);
         if(OS_ERR_NONE != OSSemPost(semPrint)) {
             // Output an error to the terminal.
             char err_str[32] = "OSSemPost error";

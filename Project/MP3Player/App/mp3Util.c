@@ -10,12 +10,11 @@
 #include "bsp.h"
 #include "print.h"
 #include "SD.h"
+#include "PlayerState.h"
 
-#ifndef BUFSIZE
-#define BUFSIZE 256
-#endif
+//extern OS_EVENT * semPause;
 
-static char buf[BUFSIZE];
+extern STATE state;
 
 void delay(uint32_t time);  //todo: move this to main.c
 
@@ -50,39 +49,52 @@ static void Mp3StreamInit(HANDLE hMp3)
 // Streams the given file from the SD card to the given MP3 decoder.
 // hMP3: an open handle to the MP3 decoder
 // pFilename: The file on the SD card to stream.
-void Mp3StreamSDFile(HANDLE hMp3, HANDLE hSD, char *pFilename)
+void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
 {
     INT32U length;
 
     Mp3StreamInit(hMp3);
 
-	char printBuf[PRINTBUFMAX];
-
-    SD.begin(hSD);
     dataFile = SD.open(pFilename, O_READ);
     if (!dataFile)
     {
-        PrintWithBuf(printBuf, PRINTBUFMAX, "Error: could not open SD card file '%s'\n", pFilename);
+        PrintFormattedString("Error: could not open SD card file '%s'\n", pFilename);
         return;
     }
 
     INT8U mp3Buf[MP3_DECODER_BUF_SIZE];
     INT32U bytesRead = 0;
     nextSong = OS_FALSE;
+    INT8U exit = 0;
 
     INT32S bytesAvailable = dataFile.available();
-    while (bytesAvailable)
+    while (bytesAvailable && 0 == exit)
     {
-        bytesRead = dataFile.read(mp3Buf, MP3_DECODER_BUF_SIZE);
+        //might need a mutex here
+        switch(state) {
+        case PS_STOP:
+            exit = 1;
+            break;
+        case PS_PLAY:
+            {
+                bytesRead = dataFile.read(mp3Buf, MP3_DECODER_BUF_SIZE);
 
-        if(-1 == bytesRead) {
-            PrintWithBuf(buf, BUFSIZE, "Error reading data file!\nPossible errors include:\n");
-            PrintWithBuf(buf, BUFSIZE, "\tread() called before a file has been opened,\n"
-                                       "\tcorrupt file system,\n"
-                                       "\tor an I/O error has occurred.\n");
+                if(-1 == bytesRead) {
+                    PrintFormattedString("Error reading data file!\nPossible errors include:\n"
+                                         "\tread() called before a file has been opened,\n"
+                                         "\tcorrupt file system,\n"
+                                         "\tor an I/O error has occurred.\n");
+                    exit = 1;
+                }
+                Write(hMp3, mp3Buf, &bytesRead);
+            }
+            break;
+        case PS_PAUSE:
+            OSTimeDly(1);
+            continue;
+        default:
             break;
         }
-        Write(hMp3, mp3Buf, &bytesRead);
 
         //TODO: implement file changing
         if (nextSong)

@@ -26,10 +26,6 @@ Module Description:
 #include <Adafruit_ILI9341.h>
 #include <Adafruit_FT6206.h>
 
-#ifndef BUFSIZE
-#define BUFSIZE 256
-#endif
-
 /************************************************************************************
 
 Allocate the stacks for each task.
@@ -49,9 +45,10 @@ void PrintToLcdWithBuf(char *buf, int size, char *format, ...);
 // Globals
 BOOLEAN nextSong = OS_FALSE;
 
-extern OS_EVENT* semPrint;
 OS_FLAG_GRP *rxFlags = 0;       // Event flags for synchronizing mailbox messages
 OS_EVENT * touch2CmdHandler;
+OS_EVENT * semPrint;
+OS_EVENT * semPause; //todo: rename
 
 INPUT_COMMAND commandPressed[1];
 
@@ -63,32 +60,36 @@ the system tick timer and creates all the other tasks. Then it deletes itself.
 ************************************************************************************/
 void StartupTask(void* pdata)
 {
-	char buf[BUFSIZE];
     uint8_t err = 0;
 
     touch2CmdHandler = OSMboxCreate((void*)0);
     if(NULL == touch2CmdHandler) {
-        PrintWithBuf(buf, BUFSIZE, "StartupTask: failed to create touch2CmdHandler\n");
+        PrintFormattedString("StartupTask: failed to create touch2CmdHandler\n");
     }
 
     rxFlags = OSFlagCreate((OS_FLAGS)0, &err);
     if(err != OS_ERR_NONE) {
-        PrintWithBuf(buf, BUFSIZE, "StartupTask: failed to create rxFlags with error %d\n", (INT32U)err);
+        PrintFormattedString("StartupTask: failed to create rxFlags with error %d\n", (INT32U)err);
     }
 
     semPrint = OSSemCreate(1);
     if(NULL == semPrint) {
-        PrintWithBuf(buf, BUFSIZE, "StartupTask: failed to create semPrint\n");
+        PrintFormattedString("StartupTask: failed to create semPrint\n");
     }
 
-	PrintWithBuf(buf, BUFSIZE, "StartupTask: Begin\n");
-	PrintWithBuf(buf, BUFSIZE, "StartupTask: Starting timer tick\n");
+    semPause = OSSemCreate(1);
+    if(NULL == semPause) {
+        PrintFormattedString("StartupTask: failed to create semPause\n");
+    }
+
+	PrintFormattedString("StartupTask: Begin\n");
+	PrintFormattedString("StartupTask: Starting timer tick\n");
 
     // Start the system tick
     OS_CPU_SysTickInit(OS_TICKS_PER_SEC);
 
     // Create the tasks
-    PrintWithBuf(buf, BUFSIZE, "StartupTask: Creating the application tasks\n");
+    PrintFormattedString("StartupTask: Creating the application tasks\n");
 
     // The maximum number of tasks the application can have is defined by OS_MAX_TASKS in os_cfg.h
     OSTaskCreate(StreamingTask, (void*)0, &StreamingTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_STREAM_PRIO);
@@ -99,7 +100,7 @@ void StartupTask(void* pdata)
     OSTaskCreate(TaskRxFlags, (void*)0, &TaskRxFlagsStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_RXFLAGS_PRIO);
 
     // Delete ourselves, letting the work be done in the new tasks.
-    PrintWithBuf(buf, BUFSIZE, "StartupTask: deleting self\n");
+    PrintFormattedString("StartupTask: deleting self\n");
 	OSTaskDel(OS_PRIO_SELF);
 }
 
@@ -115,19 +116,18 @@ before either can receive their next message.
 void TaskRxFlags(void* pData)
 {
 	INT8U err;
-	char buf[BUFSIZE];
 
-	PrintWithBuf(buf, BUFSIZE, "TaskRxFlags: starting\n");
+	PrintFormattedString("TaskRxFlags: starting\n");
 
     while(1) {
-        OSFlagPend(rxFlags, 0x1, OS_FLAG_WAIT_SET_ALL, 0, &err);
+        OSFlagPend(rxFlags, 0x3, OS_FLAG_WAIT_SET_ALL, 0, &err);
         if(OS_ERR_NONE != err) {
-            PrintWithBuf(buf, BUFSIZE, "TaskRxFlags: pending on 0x1 for flag group rxFlags, err %d\n", err);
+            PrintFormattedString("TaskRxFlags: pending on 0x1 for flag group rxFlags, err %d\n", err);
         }
 
-        OSFlagPost(rxFlags, 0x1, OS_FLAG_CLR, &err);
+        OSFlagPost(rxFlags, 0x3, OS_FLAG_CLR, &err);
         if(OS_ERR_NONE != err) {
-            PrintWithBuf(buf, BUFSIZE, "ERR TaskRxFlags: posting to 0x%x for flag group rxFlags, err %d\n", 0x3, err);
+            PrintFormattedString("ERR TaskRxFlags: posting to 0x%x for flag group rxFlags, err %d\n", 0x3, err);
         }
     }
 }

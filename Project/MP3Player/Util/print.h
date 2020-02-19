@@ -2,7 +2,7 @@
     print.h
 
     Developed for University of Washington embedded systems programming certificate
-    
+
     2016/2 inherited from Mitch Ishihara and others
 */
 
@@ -21,7 +21,7 @@ void PrintHex(INT32U u32);
 void Print_uint32(INT32U u);
 void PrintString(char *ptr);
 void PrintStringToDevice(void (*PrintCharFunc)(char c), char *ptr);
-void PrintWithBuf(char *buf, int size, char *format, ...);
+void PrintFormattedString(char *format, ...);
 void PrintToDeviceWithBuf(void (*PrintCharFunc)(char c), char *buf, int size, char *format, va_list args);
 
 //

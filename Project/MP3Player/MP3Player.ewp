@@ -227,6 +227,7 @@
                     <state>USE_STDPERIPH_DRIVER</state>
                     <state>STM32F401xx</state>
                     <state>DEBUG</state>
+                    <state>BUFSIZE=256</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -2444,6 +2445,9 @@
         </file>
         <file>
             <name>$PROJ_DIR$\GUI\InputCommands.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\GUI\PlayerState.h</name>
         </file>
     </group>
     <group>

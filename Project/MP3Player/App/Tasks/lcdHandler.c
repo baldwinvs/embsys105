@@ -8,10 +8,6 @@
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ILI9341.h>
 
-#ifndef BUFSIZE
-#define BUFSIZE 256
-#endif
-
 Adafruit_ILI9341 lcdCtrl = Adafruit_ILI9341(); // The LCD controller
 
 // Renders a character at the current cursor position on the LCD
@@ -39,19 +35,6 @@ static void DrawLcdContents()
 	char buf[BUFSIZE];
     lcdCtrl.fillScreen(ILI9341_BLACK);
 
-//    lcdCtrl.drawRoundRect(play.x, play.y, play.w, play.h, 3, ILI9341_RED);
-//    lcdCtrl.drawRoundRect(stop.x, stop.y, stop.w, stop.h, 3, ILI9341_GREEN);
-//    // Print a message on the LCD
-//    lcdCtrl.setCursor(play.x + 10, play.y + 10);
-//    lcdCtrl.setTextColor(ILI9341_WHITE);
-//    lcdCtrl.setTextSize(2);
-//    PrintToLcdWithBuf(buf, BUFSIZE, "PLAY");
-//
-//    lcdCtrl.setCursor(stop.x + 10, stop.y + 10);
-//    lcdCtrl.setTextColor(ILI9341_WHITE);
-//    lcdCtrl.setTextSize(2);
-//    PrintToLcdWithBuf(buf, BUFSIZE, "STOP");
-
     size_t i;
     for(i = 0; i < btn_array_sz; ++i) {
         SQUARE_BUTTON* btn = (SQUARE_BUTTON*)&btn_array[i];
@@ -67,15 +50,14 @@ void LcdHandlerTask(void* pData)
 {
     PjdfErrCode pjdfErr;
     INT32U length;
-    char buf[BUFSIZE];
-    PrintWithBuf(buf, BUFSIZE, "LcdHandlerTask: starting\n");
+    PrintFormattedString("LcdHandlerTask: starting\n");
 
-	PrintWithBuf(buf, BUFSIZE, "Opening LCD driver: %s\n", PJDF_DEVICE_ID_LCD_ILI9341);
+	PrintFormattedString("Opening LCD driver: %s\n", PJDF_DEVICE_ID_LCD_ILI9341);
     // Open handle to the LCD driver
     HANDLE hLcd = Open(PJDF_DEVICE_ID_LCD_ILI9341, 0);
     if (!PJDF_IS_VALID_HANDLE(hLcd)) while(1);
 
-	PrintWithBuf(buf, BUFSIZE, "Opening LCD SPI driver: %s\n", LCD_SPI_DEVICE_ID);
+	PrintFormattedString("Opening LCD SPI driver: %s\n", LCD_SPI_DEVICE_ID);
     // We talk to the LCD controller over a SPI interface therefore
     // open an instance of that SPI driver and pass the handle to
     // the LCD driver.
@@ -86,7 +68,7 @@ void LcdHandlerTask(void* pData)
     pjdfErr = Ioctl(hLcd, PJDF_CTRL_LCD_SET_SPI_HANDLE, &hSPI, &length);
     if(PJDF_IS_ERROR(pjdfErr)) while(1);
 
-	PrintWithBuf(buf, BUFSIZE, "Initializing LCD controller\n");
+	PrintFormattedString("Initializing LCD controller\n");
     lcdCtrl.setPjdfHandle(hLcd);
     lcdCtrl.begin();
 

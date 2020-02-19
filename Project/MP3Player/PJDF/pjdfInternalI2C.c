@@ -14,12 +14,6 @@ Developed for University of Washington embedded systems programming certificate
 
 #include "print.h"
 
-#ifndef BUFSIZE
-#define BUFSIZE 256
-#endif
-
-static char buf[BUFSIZE];
-
 // Control registers etc for I2C hardware
 typedef struct _PjdfContextI2C
 {
@@ -87,7 +81,7 @@ static PjdfErrCode WriteI2C(DriverInternal *pDriver, void* pBuffer, INT32U* pCou
 {
     PjdfContextI2c* pContext = (PjdfContextI2c*)pDriver->deviceContext;
     if(NULL == pContext) {
-        PrintWithBuf(buf, BUFSIZE, "I2C1 driver context is NULL!\n");
+        PrintFormattedString("I2C1 driver context is NULL!\n");
         return PJDF_ERR_DEVICE_NOT_FOUND;
     }
     uint8_t* dataBuf = (uint8_t*)pBuffer;

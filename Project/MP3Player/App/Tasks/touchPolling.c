@@ -9,14 +9,11 @@
 #include <Adafruit_ILI9341.h>
 #include <Adafruit_FT6206.h>
 
-#define BUFSIZE 256
 #define PENRADIUS 3
 
 //GLOBALS
 extern OS_EVENT * touch2CmdHandler;
 extern INPUT_COMMAND commandPressed[1];
-
-static char buf[BUFSIZE];
 
 Adafruit_FT6206 touchCtrl = Adafruit_FT6206(); // The touch controller
 
@@ -32,7 +29,7 @@ static uint8_t checkForButtonPress(const TS_Point p, const size_t index)
             commandPressed[0] = (INPUT_COMMAND)index;
             uint8_t err = OSMboxPostOpt(touch2CmdHandler, commandPressed, OS_POST_OPT_NONE);
             if(OS_ERR_NONE != err) {
-                PrintWithBuf(buf, BUFSIZE, "TouchPollingTask: failed to post touch2CmdHandler with error %d\n", (INT32U)err);
+                PrintFormattedString("TouchPollingTask: failed to post touch2CmdHandler with error %d\n", (INT32U)err);
             }
             return 1;
         }
@@ -47,24 +44,24 @@ Runs LCD/Touch demo code
 ************************************************************************************/
 void TouchPollingTask(void* pData)
 {
-	PrintWithBuf(buf, BUFSIZE, "TouchPollingTask: starting\n");
+	PrintFormattedString("TouchPollingTask: starting\n");
 
-    PrintWithBuf(buf, BUFSIZE, "Initializing FT6206 touchscreen controller\n");
+    PrintFormattedString("Initializing FT6206 touchscreen controller\n");
     HANDLE hI2C1 = Open(PJDF_DEVICE_ID_I2C1, 0);
-    PrintWithBuf(buf, BUFSIZE, "I2C1 handle opened\n");
+    PrintFormattedString("I2C1 handle opened\n");
     if(!PJDF_IS_VALID_HANDLE(hI2C1)) {
-        PrintWithBuf(buf, BUFSIZE, "##! I2C1 PJDF HANDLE IS INVALID!!\nABORTING!\n\n");
+        PrintFormattedString("##! I2C1 PJDF HANDLE IS INVALID!!\nABORTING!\n\n");
         while(1);
     }
 
     touchCtrl.setPjdfHandle(hI2C1);
-    PrintWithBuf(buf, BUFSIZE, "I2C handle set in touchCtrl\n");
+    PrintFormattedString("I2C handle set in touchCtrl\n");
     if (! touchCtrl.begin(40)) {  // pass in 'sensitivity' coefficient
-        PrintWithBuf(buf, BUFSIZE, "Couldn't start FT6206 touchscreen controller\n");
+        PrintFormattedString("Couldn't start FT6206 touchscreen controller\n");
         while (1);
     }
     else {
-        PrintWithBuf(buf, BUFSIZE, "## FT6206 touchscreen controller started successfully!\n");
+        PrintFormattedString("## FT6206 touchscreen controller started successfully!\n");
     }
 
     uint32_t output = 1;

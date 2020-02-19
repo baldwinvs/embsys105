@@ -3,16 +3,15 @@
 #include "bsp.h"
 #include "mp3Util.h"
 #include "print.h"
+#include "SD.h"
 
-//#include "train_crossing.h"
-//#include "check_please.h"
-//#include "dogen.h"
-//#include "dogen_2.h"
-#include "dogen1_2.h"
+#include "InputCommands.h"
+#include "PlayerState.h"
 
-#ifndef BUFSIZE
-#define BUFSIZE 256
-#endif
+//Globals
+extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
+
+extern STATE state;
 
 /************************************************************************************
 
@@ -26,15 +25,14 @@ void StreamingTask(void* pData)
 
     OSTimeDly(OS_TICKS_PER_SEC * 2); // Allow other task to initialize LCD before we use it.
 
-	char buf[BUFSIZE];
-	PrintWithBuf(buf, BUFSIZE, "StreamingTask: starting\n");
+	PrintFormattedString("StreamingTask: starting\n");
 
-	PrintWithBuf(buf, BUFSIZE, "Opening MP3 driver: %s\n", PJDF_DEVICE_ID_MP3_VS1053);
+	PrintFormattedString("Opening MP3 driver: %s\n", PJDF_DEVICE_ID_MP3_VS1053);
     // Open handle to the MP3 decoder driver
     HANDLE hMp3 = Open(PJDF_DEVICE_ID_MP3_VS1053, 0);
     if (!PJDF_IS_VALID_HANDLE(hMp3)) while(1);
 
-	PrintWithBuf(buf, BUFSIZE, "Opening MP3 SPI driver: %s\n", MP3_SPI_DEVICE_ID);
+	PrintFormattedString("Opening MP3 SPI driver: %s\n", MP3_SPI_DEVICE_ID);
     // We talk to the MP3 decoder over a SPI interface therefore
     // open an instance of that SPI driver and pass the handle to
     // the MP3 driver.
@@ -46,11 +44,11 @@ void StreamingTask(void* pData)
     if(PJDF_IS_ERROR(pjdfErr)) while(1);
 
     // Initialize SD card
-    PrintWithBuf(buf, PRINTBUFMAX, "Opening handle to SD driver: %s\n", PJDF_DEVICE_ID_SD_ADAFRUIT);
+    PrintFormattedString("Opening handle to SD driver: %s\n", PJDF_DEVICE_ID_SD_ADAFRUIT);
     HANDLE hSD = Open(PJDF_DEVICE_ID_SD_ADAFRUIT, 0);
     if (!PJDF_IS_VALID_HANDLE(hSD)) while(1);
 
-    PrintWithBuf(buf, PRINTBUFMAX, "Opening SD SPI driver: %s\n", SD_SPI_DEVICE_ID);
+    PrintFormattedString("Opening SD SPI driver: %s\n", SD_SPI_DEVICE_ID);
     // We talk to the SD controller over a SPI interface therefore
     // open an instance of that SPI driver and pass the handle to
     // the SD driver.
@@ -62,21 +60,25 @@ void StreamingTask(void* pData)
     if(PJDF_IS_ERROR(pjdfErr)) while(1);
 
     // Send initialization data to the MP3 decoder and run a test
-	PrintWithBuf(buf, BUFSIZE, "Starting MP3 device test\n");
+	PrintFormattedString("Starting MP3 device test\n");
+
     Mp3Init(hMp3);
+    SD.begin(hSD);
     int count = 0;
+
+    INPUT_COMMAND* msgReceived = NULL;
+    uint8_t err;
 
     while (1)
     {
-        PrintWithBuf(buf, BUFSIZE, "Begin streaming sound file  count=%d\n", ++count);
-
-        Mp3StreamSDFile(hMp3, hSD, "dogen.mp3");
-        Mp3StreamSDFile(hMp3, hSD, "Oblivion.mp3");
-
-        PrintWithBuf(buf, BUFSIZE, "Done streaming sound file  count=%d\n", count);
+        switch(state) {
+        case PS_PLAY:
+            Mp3StreamSDFile(hMp3, "track009.mp3");
+            Mp3StreamSDFile(hMp3, "track008.mp3");
+            Mp3StreamSDFile(hMp3, "track001.mp3");
+            Mp3StreamSDFile(hMp3, "track002.mp3");
+            break;
+        }
         OSTimeDly(OS_TICKS_PER_SEC * 3);
-
-        //STATE == stop: wait for play command
-        //STATE == play:
     }
 }
