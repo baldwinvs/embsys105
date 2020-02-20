@@ -119,15 +119,13 @@ void TaskRxFlags(void* pData)
 
 	PrintFormattedString("TaskRxFlags: starting\n");
 
-    while(1) {
-        OSFlagPend(rxFlags, 0x3, OS_FLAG_WAIT_SET_ALL, 0, &err);
-        if(OS_ERR_NONE != err) {
-            PrintFormattedString("TaskRxFlags: pending on 0x1 for flag group rxFlags, err %d\n", err);
-        }
-
-        OSFlagPost(rxFlags, 0x3, OS_FLAG_CLR, &err);
-        if(OS_ERR_NONE != err) {
-            PrintFormattedString("ERR TaskRxFlags: posting to 0x%x for flag group rxFlags, err %d\n", 0x3, err);
-        }
+    OSFlagPend(rxFlags, 0xF, OS_FLAG_WAIT_SET_ALL, 0, &err);
+    if(OS_ERR_NONE != err) {
+        PrintFormattedString("TaskRxFlags: pending on 0xF for flag group rxFlags, err %d\n", err);
     }
+
+    //TODO: Change this to maybe sending the LCD controller a message to say initialized
+    PrintFormattedString("All tasks initialized!\n");
+
+	OSTaskDel(OS_PRIO_SELF);
 }

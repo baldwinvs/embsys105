@@ -13,9 +13,21 @@ extern OS_EVENT * semPause;
 
 STATE state = PS_STOP;
 
+HANDLE _hMp3;
+
+void setMp3Handle(HANDLE);
+
 void CommandHandlerTask(void* pData)
 {
     PrintFormattedString("CommandHandlerTask: starting\n");
+
+    {
+        INT8U err;
+        OSFlagPost(rxFlags, 4, OS_FLAG_SET, &err);
+        if(OS_ERR_NONE != err) {
+            PrintFormattedString("CommandHandlerTask: posting to flag group with error code %d\n", (INT32U)err);
+        }
+    }
 
     INPUT_COMMAND* msgReceived = NULL;
     uint8_t err;
@@ -107,5 +119,30 @@ void CommandHandlerTask(void* pData)
         default:
             break;
         }
+
+//        INT32U length = 0;
+//        switch(*msgReceived) {
+//        case INPUTCOMMAND_VOLUP:
+//            length = BspMp3SetVol1010Len;
+//            Write(_hMp3, (void*)BspMp3SetVol1010, &length);
+//            break;
+//        case INPUTCOMMAND_VOLDOWN:
+//            length = BspMp3SetVol1010Len;
+//            Write(_hMp3, (void*)BspMp3SetVol6060, &length);
+//            break;
+//        case INPUTCOMMAND_PLAY:
+//        case INPUTCOMMAND_STOP:
+//        case INPUTCOMMAND_SKIP:
+//        case INPUTCOMMAND_RESTART:
+//        case INPUTCOMMAND_FF:
+//        case INPUTCOMMAND_RWD:
+//        default:
+//            break;
+//        }
     }
+}
+
+void setMp3Handle(HANDLE hMp3)
+{
+    _hMp3 = hMp3;
 }

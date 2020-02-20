@@ -11,7 +11,8 @@
 
 #define PENRADIUS 3
 
-//GLOBALS
+//Globals
+extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
 extern OS_EVENT * touch2CmdHandler;
 extern INPUT_COMMAND commandPressed[1];
 
@@ -61,7 +62,11 @@ void TouchPollingTask(void* pData)
         while (1);
     }
     else {
-        PrintFormattedString("## FT6206 touchscreen controller started successfully!\n");
+        INT8U err;
+        OSFlagPost(rxFlags, 2, OS_FLAG_SET, &err);
+        if(OS_ERR_NONE != err) {
+            PrintFormattedString("TouchPollingTask: posting to flag group with error code %d\n", (INT32U)err);
+        }
     }
 
     uint32_t output = 1;

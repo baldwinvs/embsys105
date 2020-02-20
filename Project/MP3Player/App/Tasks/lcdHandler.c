@@ -5,6 +5,9 @@
 
 #include "Buttons.h"
 
+//Globals
+extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
+
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ILI9341.h>
 
@@ -75,6 +78,14 @@ void LcdHandlerTask(void* pData)
     lcdCtrl.setRotation(0);
 
     DrawLcdContents();
+
+    {
+        INT8U err;
+        OSFlagPost(rxFlags, 8, OS_FLAG_SET, &err);
+        if(OS_ERR_NONE != err) {
+            PrintFormattedString("LcdHandlerTask: posting to flag group with error code %d\n", (INT32U)err);
+        }
+    }
 
     while(1) {
         OSTimeDly(100);

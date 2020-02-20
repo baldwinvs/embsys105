@@ -13,6 +13,18 @@ extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox mess
 
 extern STATE state;
 
+extern void setMp3Handle(HANDLE);
+
+typedef struct _track_node
+{
+    char trackName[64];
+    char fileName[13];
+    uint32_t commaIndex;
+    _track_node* next;
+    _track_node* prev;
+} TRACK_NODE;
+
+void getFileList();
 /************************************************************************************
 
 Runs MP3 demo code
@@ -31,6 +43,8 @@ void StreamingTask(void* pData)
     // Open handle to the MP3 decoder driver
     HANDLE hMp3 = Open(PJDF_DEVICE_ID_MP3_VS1053, 0);
     if (!PJDF_IS_VALID_HANDLE(hMp3)) while(1);
+
+    setMp3Handle(hMp3);
 
 	PrintFormattedString("Opening MP3 SPI driver: %s\n", MP3_SPI_DEVICE_ID);
     // We talk to the MP3 decoder over a SPI interface therefore
@@ -60,14 +74,19 @@ void StreamingTask(void* pData)
     if(PJDF_IS_ERROR(pjdfErr)) while(1);
 
     // Send initialization data to the MP3 decoder and run a test
-	PrintFormattedString("Starting MP3 device test\n");
+//	PrintFormattedString("Starting MP3 device test\n");
 
     Mp3Init(hMp3);
     SD.begin(hSD);
-    int count = 0;
 
-    INPUT_COMMAND* msgReceived = NULL;
-    uint8_t err;
+    getFileList();
+    {
+        INT8U err;
+        OSFlagPost(rxFlags, 1, OS_FLAG_SET, &err);
+        if(OS_ERR_NONE != err) {
+            PrintFormattedString("StreamingTask: posting to flag group with error code %d\n", (INT32U)err);
+        }
+    }
 
     while (1)
     {
@@ -80,5 +99,43 @@ void StreamingTask(void* pData)
             break;
         }
         OSTimeDly(OS_TICKS_PER_SEC * 3);
+    }
+}
+
+void getFileList()
+{
+    File file = SD.open("songs.txt", O_READ);
+    if (!file)
+    {
+        PrintFormattedString("Error: could not open SD card file 'songs.txt'\n");
+        return;
+    }
+
+    char line[128];
+    TRACK_NODE node;
+
+    while(file.available()) {
+        node = {0, 0, 0};
+        memset(line, 0, 128);
+        line[0] = file.read();
+        if(line[0] == '\n') return;
+
+        INT32U index = 1;
+        while(index < BUFSIZE && line[index] != '\n') {
+            line[index] = file.read();
+            if(line[index] == '\r') {
+                line[++index] = file.read();
+                continue;
+            }
+            if(line[index] == ',') {
+                node.commaIndex = index;
+            }
+            ++index;
+        }
+
+        strncpy(node.trackName, line, node.commaIndex - 4);
+        strncpy(node.fileName, &line[node.commaIndex + 1], 12);
+
+        PrintFormattedString("\tTrack: %s\tFile: %s\n", node.trackName, node.fileName);
     }
 }
