@@ -41,8 +41,17 @@ static void DrawLcdContents()
     size_t i;
     for(i = 0; i < btn_array_sz; ++i) {
         SQUARE_BUTTON* btn = (SQUARE_BUTTON*)&btn_array[i];
-        lcdCtrl.drawRoundRect(btn->x, btn->y, btn->w, btn->h, 3, ILI9341_ORANGE);
-        lcdCtrl.setCursor(btn->x + 10, btn->y + 10);
+        if(OS_TRUE == btn->drawButton) {
+            lcdCtrl.drawRoundRect(btn->x, btn->y, btn->w, btn->h, 3, ILI9341_ORANGE);
+        }
+        const size_t length = strlen(btn->primaryName);
+        const size_t xPos = (btn->x + btn->w) / 2;
+        if(length > 1) {
+            lcdCtrl.setCursor(xPos - 5 * length, btn->y + 8);
+        }
+        else {
+            lcdCtrl.setCursor(xPos, btn->y + 8);
+        }
         lcdCtrl.setTextColor(ILI9341_WHITE);
         lcdCtrl.setTextSize(2);
         PrintToLcdWithBuf(buf, BUFSIZE, btn->primaryName);

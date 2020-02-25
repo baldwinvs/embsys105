@@ -42,8 +42,15 @@ extern const INT8U BspMp3TestMode[];
 extern const INT8U BspMp3PlayMode[];
 extern const INT8U BspMp3SoftReset[];
 extern const INT8U BspMp3SetClockF[];
+extern const INT8U BspMp3SetVol0000[];
 extern const INT8U BspMp3SetVol1010[];
+extern const INT8U BspMp3SetVol2020[];
+extern const INT8U BspMp3SetVol3030[];
+extern const INT8U BspMp3SetVol4040[];
+extern const INT8U BspMp3SetVol5050[];
 extern const INT8U BspMp3SetVol6060[];
+extern const INT8U BspMp3SetVol7070[];
+extern const INT8U BspMp3SetVol8080[];
 extern const INT8U BspMp3ReadVol[];
 
 // Lengths of the above commands
@@ -53,8 +60,7 @@ extern const INT8U BspMp3TestModeLen;
 extern const INT8U BspMp3PlayModeLen;
 extern const INT8U BspMp3SoftResetLen;
 extern const INT8U BspMp3SetClockFLen;
-extern const INT8U BspMp3SetVol1010Len;
-extern const INT8U BspMp3SetVol6060Len;
+extern const INT8U BspMp3SetVolLen;
 extern const INT8U BspMp3ReadVolLen;
 
 

@@ -3,15 +3,17 @@
 #include "bsp.h"
 #include "print.h"
 
+#include "LinkedList.h"
 #include "InputCommands.h"
-#include "PlayerState.h"
+#include "PlayerControl.h"
 
 //Globals
 extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
 extern OS_EVENT * touch2CmdHandler;
-extern OS_EVENT * semPause;
+extern OS_EVENT * commandMsgQ;
 
-STATE state = PS_STOP;
+extern TRACK* head;
+extern TRACK* current;
 
 HANDLE _hMp3;
 
@@ -31,6 +33,9 @@ void CommandHandlerTask(void* pData)
 
     INPUT_COMMAND* msgReceived = NULL;
     uint8_t err;
+    CONTROL command = PC_NONE;
+    CONTROL state = PC_STOP;
+    CONTROL control = PC_NONE;
 
     while(1) {
         msgReceived = (INPUT_COMMAND*)OSMboxPend(touch2CmdHandler, 0, &err);
@@ -67,50 +72,77 @@ void CommandHandlerTask(void* pData)
         //              go to the next track and begin playing
         //                  *(use ring buffer of tracks)
 
+        INT32U cpu_sr;
+
+        OS_ENTER_CRITICAL();
+
+        //todo: refactor this ugly thing
         switch(state) {
-        case PS_STOP:
+        case PC_STOP:
             switch(*msgReceived) {
-            case INPUTCOMMAND_PLAY:
-                OSSemPend(semPause, 0, &err);
-                state = PS_PLAY;
-                OSSemPost(semPause);
+            case IC_PLAY:
+                state = PC_PLAY;
+                break;
+            case IC_SKIP:
+                current = current->next;
+                break;
+            case IC_RESTART:
+                current = current->prev;
+                break;
+            case IC_VOLUP:
+                control = PC_VOLUP;
+                break;
+            case IC_VOLDOWN:
+                control = PC_VOLDOWN;
                 break;
             default:
                 break;
             }
             break;
-        case PS_PLAY:
+        case PC_PLAY:
             switch(*msgReceived) {
-            case INPUTCOMMAND_STOP:
-                OSSemPend(semPause, 0, &err);
-                state = PS_STOP;
-                OSSemPost(semPause);
+            case IC_STOP:
+                state = PC_STOP;
                 break;
-            case INPUTCOMMAND_PLAY:
-                OSSemPend(semPause, 0, &err);
-                state = PS_PAUSE;
-                OSSemPost(semPause);
+            case IC_PLAY:
+                state = PC_PAUSE;
                 break;
-            case INPUTCOMMAND_SKIP:
+            case IC_SKIP:
+                control = PC_SKIP;
                 break;
-            case INPUTCOMMAND_RESTART:
+            case IC_RESTART:
+                control = PC_RESTART;
+                break;
+            case IC_VOLUP:
+                control = PC_VOLUP;
+                break;
+            case IC_VOLDOWN:
+                control = PC_VOLDOWN;
                 break;
             default:
                 break;
             }
             break;
-        case PS_PAUSE:
+        case PC_PAUSE:
             switch(*msgReceived) {
-            case INPUTCOMMAND_STOP:
+            case IC_STOP:
                 break;
-            case INPUTCOMMAND_PLAY:
-                OSSemPend(semPause, 0, &err);
-                state = PS_PLAY;
-                OSSemPost(semPause);
+            case IC_PLAY:
+                state = PC_PLAY;
                 break;
-            case INPUTCOMMAND_SKIP:
+            case IC_SKIP:
+                state = PC_PLAY;
+                control = PC_SKIP;
                 break;
-            case INPUTCOMMAND_RESTART:
+            case IC_RESTART:
+                state = PC_PLAY;
+                control = PC_RESTART;
+                break;
+            case IC_VOLUP:
+                control = PC_VOLUP;
+                break;
+            case IC_VOLDOWN:
+                control = PC_VOLDOWN;
                 break;
             default:
                 break;
@@ -119,26 +151,12 @@ void CommandHandlerTask(void* pData)
         default:
             break;
         }
+        command = (CONTROL)(state | control);
+        OSQPost(commandMsgQ, &command);
 
-//        INT32U length = 0;
-//        switch(*msgReceived) {
-//        case INPUTCOMMAND_VOLUP:
-//            length = BspMp3SetVol1010Len;
-//            Write(_hMp3, (void*)BspMp3SetVol1010, &length);
-//            break;
-//        case INPUTCOMMAND_VOLDOWN:
-//            length = BspMp3SetVol1010Len;
-//            Write(_hMp3, (void*)BspMp3SetVol6060, &length);
-//            break;
-//        case INPUTCOMMAND_PLAY:
-//        case INPUTCOMMAND_STOP:
-//        case INPUTCOMMAND_SKIP:
-//        case INPUTCOMMAND_RESTART:
-//        case INPUTCOMMAND_FF:
-//        case INPUTCOMMAND_RWD:
-//        default:
-//            break;
-//        }
+        OS_EXIT_CRITICAL();
+
+        control = PC_NONE;
     }
 }
 

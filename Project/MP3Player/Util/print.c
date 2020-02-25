@@ -109,8 +109,7 @@ void PrintToDeviceWithBuf(void (*PrintCharFunc)(char c), char *buf, int size, ch
 ************************************************************************************/
 void PrintFormattedString(char *format, ...)
 {
-//    static const size_t BUFSIZE = 256;
-    static char buf[BUFSIZE];
+    static char buf[BUFSIZE]; //BUFSIZE defined in project settings
 	INT8U err;
     va_list args;
     va_start(args, format);

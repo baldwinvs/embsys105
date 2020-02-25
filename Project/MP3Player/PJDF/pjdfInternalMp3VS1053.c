@@ -114,7 +114,7 @@ static PjdfErrCode WriteMP3(DriverInternal *pDriver, void* pBuffer, INT32U* pCou
         retval = Ioctl(hSPI, PJDF_CTRL_SPI_RELEASE_LOCK, 0, 0);
         if (retval != PJDF_ERR_NONE) while(1);
 
-        OSTimeDly(5); // can optimize this to handle highest audio bit rate while allowing delay for other tasks
+        OSTimeDly(1); // can optimize this to handle highest audio bit rate while allowing delay for other tasks
 
         retval = Ioctl(hSPI, PJDF_CTRL_SPI_WAIT_FOR_LOCK, 0, 0); // wait for exclusive access
         if (retval != PJDF_ERR_NONE) while(1);

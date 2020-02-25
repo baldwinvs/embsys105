@@ -16,7 +16,6 @@ MIT license, all text above must be included in any redistribution
 
 
 #include <Adafruit_FT6206.h>
-#include "bspI2c.h"
 
 #if defined(__SAM3X8E__)
 #define Wire Wire1
@@ -93,18 +92,14 @@ boolean Adafruit_FT6206::touched(void) {
 /*****************************/
 
 void Adafruit_FT6206::readData(uint16_t *x, uint16_t *y) {
-    INT32U cpu_sr{};
-
     uint8_t address(FT6206_ADDR<<1);
     INT32U writeBufSize{1};
     INT32U readBufSize{16};
     uint8_t writeBuf[2] = {address, 0};
     uint8_t readBuf[16] = {address};
 
-    OS_ENTER_CRITICAL();
     Write(hI2C, writeBuf, &writeBufSize);
     Read(hI2C, readBuf, &readBufSize);
-    OS_EXIT_CRITICAL();
 
     uint8_t* i2cdat{readBuf};
 
@@ -141,8 +136,6 @@ TS_Point Adafruit_FT6206::getPoint(void) {
 
 
 uint8_t Adafruit_FT6206::readRegister8(uint8_t reg) {
-    INT32U cpu_sr{};
-
     uint8_t address(FT6206_ADDR<<1);
     INT32U writeBufSize{1};
     INT32U readBufSize{1};
@@ -150,25 +143,19 @@ uint8_t Adafruit_FT6206::readRegister8(uint8_t reg) {
     uint8_t readBuf[1] = {address};
 
     // use i2c
-    OS_ENTER_CRITICAL();
     Write(hI2C, writeBuf, &writeBufSize);
     Read(hI2C, readBuf, &readBufSize);
-    OS_EXIT_CRITICAL();
 
     return readBuf[0];
 }
 
 void Adafruit_FT6206::writeRegister8(uint8_t reg, uint8_t val) {
-    INT32U cpu_sr{};
-
     uint8_t address{FT6206_ADDR<<1};
     INT32U writeBufSize{2};
     uint8_t writeBuf[3] = {address, reg, val};
 
     // use i2c
-    OS_ENTER_CRITICAL();
     Write(hI2C, writeBuf, &writeBufSize);
-    OS_EXIT_CRITICAL();
 }
 
 void Adafruit_FT6206::setPjdfHandle(HANDLE hI2C) {

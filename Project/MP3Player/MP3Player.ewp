@@ -2227,6 +2227,9 @@
             </file>
         </group>
         <file>
+            <name>$PROJ_DIR$\App\LinkedList.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\App\main.c</name>
         </file>
         <file>
@@ -2447,7 +2450,7 @@
             <name>$PROJ_DIR$\GUI\InputCommands.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\GUI\PlayerState.h</name>
+            <name>$PROJ_DIR$\GUI\PlayerControl.h</name>
         </file>
     </group>
     <group>

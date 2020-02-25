@@ -71,6 +71,8 @@ void TouchPollingTask(void* pData)
 
     uint32_t output = 1;
     const uint32_t delayTicks = OS_TICKS_PER_SEC / 12;
+    TS_Point rawPoint;
+    TS_Point p;
 
     while (1) {
         boolean touched = false;
@@ -87,8 +89,6 @@ void TouchPollingTask(void* pData)
             continue;
         }
 
-        TS_Point rawPoint;
-
         rawPoint = touchCtrl.getPoint();
 
         if (rawPoint.x == 0 && rawPoint.y == 0)
@@ -97,7 +97,7 @@ void TouchPollingTask(void* pData)
         }
 
         // transform touch orientation to screen orientation.
-        TS_Point p = TS_Point();
+        p = TS_Point();
         p.x = MapTouchToScreen(rawPoint.x, 0, ILI9341_TFTWIDTH, ILI9341_TFTWIDTH, 0);
         p.y = MapTouchToScreen(rawPoint.y, 0, ILI9341_TFTHEIGHT, ILI9341_TFTHEIGHT, 0);
 

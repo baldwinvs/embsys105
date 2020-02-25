@@ -55,6 +55,8 @@ static PjdfErrCode ReadI2C(DriverInternal *pDriver, void* pBuffer, INT32U* pCoun
     if(NULL == pContext) while(1);
     uint8_t* dataBuf = (uint8_t*)pBuffer;
 
+    OS_CPU_SR cpu_sr = 0;
+    OS_ENTER_CRITICAL();
     I2C_start(pContext->i2cMemMap, dataBuf[0], I2C_Direction_Receiver);
 
     INT32U i = 0;
@@ -63,6 +65,7 @@ static PjdfErrCode ReadI2C(DriverInternal *pDriver, void* pBuffer, INT32U* pCoun
         ++i;
     }
     dataBuf[i] = I2C_read_nack(pContext->i2cMemMap);
+    OS_EXIT_CRITICAL();
 
     return PJDF_ERR_NONE;
 }
@@ -86,6 +89,8 @@ static PjdfErrCode WriteI2C(DriverInternal *pDriver, void* pBuffer, INT32U* pCou
     }
     uint8_t* dataBuf = (uint8_t*)pBuffer;
 
+    OS_CPU_SR cpu_sr = 0;
+    OS_ENTER_CRITICAL();
     I2C_start(pContext->i2cMemMap, dataBuf[0], I2C_Direction_Transmitter);
 
     INT32U i = 1;
@@ -95,6 +100,7 @@ static PjdfErrCode WriteI2C(DriverInternal *pDriver, void* pBuffer, INT32U* pCou
         --*pCount;
     }
     I2C_stop(pContext->i2cMemMap);
+    OS_EXIT_CRITICAL();
 
     return PJDF_ERR_NONE;
 }

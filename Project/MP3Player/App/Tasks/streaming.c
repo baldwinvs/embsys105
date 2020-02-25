@@ -5,26 +5,30 @@
 #include "print.h"
 #include "SD.h"
 
+#include "LinkedList.h"
 #include "InputCommands.h"
-#include "PlayerState.h"
+#include "PlayerControl.h"
+
+#include <stdlib.h>
 
 //Globals
 extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
+extern OS_EVENT * commandMsgQ;
 
-extern STATE state;
 
 extern void setMp3Handle(HANDLE);
 
-typedef struct _track_node
-{
-    char trackName[64];
-    char fileName[13];
-    uint32_t commaIndex;
-    _track_node* next;
-    _track_node* prev;
-} TRACK_NODE;
+static uint32_t trackListSize = 0;
+TRACK* head = NULL;
+TRACK* current = NULL;
 
-void getFileList();
+CONTROL state = PC_STOP;
+CONTROL control = PC_NONE;
+INT8U volume[4];
+
+void initFileList();
+void checkCommandQueue();
+void volumeControl(HANDLE, INT8U);
 /************************************************************************************
 
 Runs MP3 demo code
@@ -73,13 +77,13 @@ void StreamingTask(void* pData)
     pjdfErr = Ioctl(hSD, PJDF_CTRL_SD_SET_SPI_HANDLE, &hSPI, &length);
     if(PJDF_IS_ERROR(pjdfErr)) while(1);
 
-    // Send initialization data to the MP3 decoder and run a test
-//	PrintFormattedString("Starting MP3 device test\n");
+    // initialize the volume
+    memcpy(volume, BspMp3SetVol4040, 4);
 
     Mp3Init(hMp3);
     SD.begin(hSD);
 
-    getFileList();
+    initFileList();
     {
         INT8U err;
         OSFlagPost(rxFlags, 1, OS_FLAG_SET, &err);
@@ -90,19 +94,19 @@ void StreamingTask(void* pData)
 
     while (1)
     {
+        checkCommandQueue();
+
         switch(state) {
-        case PS_PLAY:
-            Mp3StreamSDFile(hMp3, "track009.mp3");
-            Mp3StreamSDFile(hMp3, "track008.mp3");
-            Mp3StreamSDFile(hMp3, "track001.mp3");
-            Mp3StreamSDFile(hMp3, "track002.mp3");
+        case PC_PLAY:
+            PrintFormattedString("Now playing: %s\n", current->trackName);
+            Mp3StreamSDFile(hMp3, current->fileName);
             break;
         }
-        OSTimeDly(OS_TICKS_PER_SEC * 3);
+        OSTimeDly(1);
     }
 }
 
-void getFileList()
+void initFileList()
 {
     File file = SD.open("songs.txt", O_READ);
     if (!file)
@@ -111,31 +115,172 @@ void getFileList()
         return;
     }
 
-    char line[128];
-    TRACK_NODE node;
+    uint32_t commaIndex = 0;
 
+    //TODO: reverse this so the format is
+    //  trackXXX.mp3,<track name>
     while(file.available()) {
-        node = {0, 0, 0};
-        memset(line, 0, 128);
+        //TODO: replace mallocs with memory partitions
+        TRACK* track = (TRACK *) malloc(sizeof(TRACK));
+        char line[128] = {0};
+        memset(track->trackName, 0, 64);
+        memset(track->fileName, 0, 13);
+
         line[0] = file.read();
         if(line[0] == '\n') return;
 
         INT32U index = 1;
-        while(index < BUFSIZE && line[index] != '\n') {
+        while(index < 128 && line[index] != '\n') {
             line[index] = file.read();
             if(line[index] == '\r') {
                 line[++index] = file.read();
                 continue;
             }
             if(line[index] == ',') {
-                node.commaIndex = index;
+                commaIndex = index;
             }
+
             ++index;
         }
 
-        strncpy(node.trackName, line, node.commaIndex - 4);
-        strncpy(node.fileName, &line[node.commaIndex + 1], 12);
+        strncpy(track->trackName, line, commaIndex - 4);     // subtracting 4 to remove ".mXX"
+        strncpy(track->fileName, &line[commaIndex + 1], 12); // trackxxx.mXX is 12 characters
 
-        PrintFormattedString("\tTrack: %s\tFile: %s\n", node.trackName, node.fileName);
+        if(NULL == head) {
+            head = track;
+            current = head;
+        }
+        else {
+            current->next = track;
+            TRACK* tmp = current;
+            current = track;
+            current->prev = tmp;
+        }
+        ++trackListSize;
+
+        PrintFormattedString("\tFile: %s\tTrack: %s\n", track->fileName, track->trackName);
     }
+
+    // Close the circular doubly linked list
+    current->next = head;
+    head->prev = current;
+
+    //Reset current to point at the head of the DLL.
+    current = head;
+
+    //Now check that each file can be opened.
+    //Remove nodes as necessary and free the space
+    uint32_t i;
+    for(i = 0; i < trackListSize; ++i) {
+        file = SD.open(current->fileName, O_READ);
+
+        if(!file) {
+            PrintFormattedString("Error - File List Initialization: could not open SD card file '%s'\n"
+                                 "Removing from song list.\n" , current->fileName);
+
+            //Remove the current node
+            TRACK* nextTrack = current->next;
+            TRACK* prevTrack = current->prev;
+
+            nextTrack->prev = prevTrack;
+            prevTrack->next = nextTrack;
+
+            current->next = NULL;
+            current->prev = NULL;
+            free(current);
+
+            current = nextTrack;
+        }
+        else {
+            file.close();
+        }
+    }
+
+    // Set head to be the current file.
+    current = head;
+}
+
+void checkCommandQueue()
+{
+    CONTROL * command = NULL;
+    INT8U err = OS_ERR_NONE;
+    command = (CONTROL *)OSQAccept(commandMsgQ, &err);
+
+    if(NULL == command) {
+        return;
+    }
+
+    if(OS_ERR_NONE != err) {
+        PrintFormattedString("StreamingTask: OSQAccept gave error code %d\n", (INT32U)err);
+    }
+
+    char stateStr[6] = {0};
+    char controlStr[8] = {0};
+    switch(*command & stateMask) {
+    case PC_STOP:
+        strcpy(stateStr, "STOP");
+        state = (CONTROL)(*command & stateMask);
+        break;
+    case PC_PLAY:
+        strcpy(stateStr, "PLAY");
+        state = (CONTROL)(*command & stateMask);
+        break;
+    case PC_PAUSE:
+        strcpy(stateStr, "PAUSE");
+        state = (CONTROL)(*command & stateMask);
+        break;
+    default:
+        break;
+    }
+    switch(*command & controlMask) {
+    case PC_SKIP:
+        strcpy(controlStr, "SKIP");
+        control = (CONTROL)(*command & controlMask);
+        break;
+    case PC_RESTART:
+        strcpy(controlStr, "RESTART");
+        control = (CONTROL)(*command & controlMask);
+        break;
+    case PC_VOLUP:
+        strcpy(controlStr, "VOL UP");
+        control = (CONTROL)(*command & controlMask);
+        break;
+    case PC_VOLDOWN:
+        strcpy(controlStr, "VOL DOWN");
+        control = (CONTROL)(*command & controlMask);
+        break;
+    default:
+        break;
+    }
+
+    PrintFormattedString("State changed to %s\n", stateStr);
+    if(control != PC_NONE) {
+        PrintFormattedString("Control changed to %s\n", controlStr);
+    }
+}
+
+void volumeControl(HANDLE hMp3, INT8U vol_up)
+{
+    INT32U length = BspMp3SetVolLen;
+    INT8U vol_LR = volume[3];
+
+    if(0 != vol_up) {
+        if(vol_LR == 0xFE)      vol_LR = 0x80;
+        else if(vol_LR >= 0x10) vol_LR -= 0x10;
+        else                    vol_LR = 0x00;
+    }
+    else {
+        if(vol_LR < 0x80)   vol_LR += 0x10;
+        else                vol_LR = 0xFE;
+    }
+    volume[2] = vol_LR;
+    volume[3] = vol_LR;
+
+    //Place MP3 driver in command mode (subsequent writes will be sent to the decoder's command interface)
+    Ioctl(hMp3, PJDF_CTRL_MP3_SELECT_COMMAND, 0, 0);
+
+    Write(hMp3, (void*)volume, &length);
+
+    //Set MP3 driver to data mode (subsequent writes will be sent to decoder's data interface)
+    Ioctl(hMp3, PJDF_CTRL_MP3_SELECT_DATA, 0, 0);
 }

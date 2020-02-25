@@ -21,6 +21,7 @@ Module Description:
 #include "print.h"
 #include "mp3Util.h"
 #include "InputCommands.h"
+#include "PlayerControl.h"
 
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ILI9341.h>
@@ -34,7 +35,7 @@ The maximum number of tasks the application can have is defined by OS_MAX_TASKS 
 ************************************************************************************/
 
 static OS_STK TouchPollingTaskStk[APP_CFG_TASK_START_STK_SIZE];
-static OS_STK StreamingTaskStk[APP_CFG_TASK_START_STK_SIZE];
+static OS_STK StreamingTaskStk[APP_CFG_TASK_STK_SIZE];
 static OS_STK LcdHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE];
 static OS_STK CommandHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE];
 static OS_STK TaskRxFlagsStk[APP_CFG_TASK_START_STK_SIZE];
@@ -43,12 +44,12 @@ static OS_STK TaskRxFlagsStk[APP_CFG_TASK_START_STK_SIZE];
 void PrintToLcdWithBuf(char *buf, int size, char *format, ...);
 
 // Globals
-BOOLEAN nextSong = OS_FALSE;
-
 OS_FLAG_GRP *rxFlags = 0;       // Event flags for synchronizing mailbox messages
 OS_EVENT * touch2CmdHandler;
 OS_EVENT * semPrint;
-OS_EVENT * semPause; //todo: rename
+
+void* commandBuffer[4] = {0};
+OS_EVENT * commandMsgQ;
 
 INPUT_COMMAND commandPressed[1];
 
@@ -77,9 +78,10 @@ void StartupTask(void* pdata)
         PrintFormattedString("StartupTask: failed to create semPrint\n");
     }
 
-    semPause = OSSemCreate(1);
-    if(NULL == semPause) {
-        PrintFormattedString("StartupTask: failed to create semPause\n");
+    const uint16_t commandBufferSize = sizeof(commandBuffer)/sizeof(void*);
+    commandMsgQ = OSQCreate(commandBuffer, commandBufferSize);
+    if(NULL == commandMsgQ) {
+        PrintFormattedString("StartupTask: failed to create commandMsgQ\n");
     }
 
 	PrintFormattedString("StartupTask: Begin\n");
@@ -92,7 +94,7 @@ void StartupTask(void* pdata)
     PrintFormattedString("StartupTask: Creating the application tasks\n");
 
     // The maximum number of tasks the application can have is defined by OS_MAX_TASKS in os_cfg.h
-    OSTaskCreate(StreamingTask, (void*)0, &StreamingTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_STREAM_PRIO);
+    OSTaskCreate(StreamingTask, (void*)0, &StreamingTaskStk[APP_CFG_TASK_STK_SIZE-1], APP_TASK_STREAM_PRIO);
     OSTaskCreate(TouchPollingTask, (void*)0, &TouchPollingTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_TOUCH_PRIO);
     OSTaskCreate(CommandHandlerTask, (void*)0, &CommandHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_COMMAND_PRIO);
     OSTaskCreate(LcdHandlerTask, (void*)0, &LcdHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_LCD_PRIO);

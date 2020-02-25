@@ -10,20 +10,38 @@
 #include "bsp.h"
 #include "print.h"
 #include "SD.h"
-#include "PlayerState.h"
+#include "PlayerControl.h"
+#include "LinkedList.h"
 
-//extern OS_EVENT * semPause;
-
-extern STATE state;
+extern TRACK* head;
+extern TRACK* current;
+extern OS_EVENT * commandMsgQ;
+extern CONTROL state;
+extern CONTROL control;
+extern INT8U volume[4];
 
 void delay(uint32_t time);  //todo: move this to main.c
 
 static File dataFile;
 
-extern BOOLEAN nextSong;
+extern void checkCommandQueue();
+extern void volumeControl(HANDLE, INT8U);
+
+uint32_t checkRestartTrack(const uint32_t start)
+{
+    const uint32_t restartTime = OSTimeGet();
+    const uint32_t diff = (restartTime < start ? (UINT32_MAX - start + restartTime) //inexplicable rollover occurred
+                           : (restartTime - start));
+
+    if(diff <= (2 * OS_TICKS_PER_SEC)) {
+        return 1;
+    }
+    return 0;
+}
 
 static void Mp3StreamInit(HANDLE hMp3)
 {
+
     INT32U length;
 
     // Place MP3 driver in command mode (subsequent writes will be sent to the decoder's command interface)
@@ -34,8 +52,8 @@ static void Mp3StreamInit(HANDLE hMp3)
     Write(hMp3, (void*)BspMp3SoftReset, &length);
 
     // Set volume
-    length = BspMp3SetVol1010Len;
-    Write(hMp3, (void*)BspMp3SetVol1010, &length);
+    length = BspMp3SetVolLen;
+    Write(hMp3, (void*)volume, &length);
 
     // To allow streaming data, set the decoder mode to Play Mode
     length = BspMp3PlayModeLen;
@@ -59,23 +77,27 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
     if (!dataFile)
     {
         PrintFormattedString("Error: could not open SD card file '%s'\n", pFilename);
-        return;
+        return PC_STOP;
     }
 
     INT8U mp3Buf[MP3_DECODER_BUF_SIZE];
     INT32U bytesRead = 0;
-    nextSong = OS_FALSE;
+    INT32U startTime = OSTimeGet();
     INT8U exit = 0;
 
     INT32S bytesAvailable = dataFile.available();
+
     while (bytesAvailable && 0 == exit)
     {
+        checkCommandQueue();
+
         //might need a mutex here
         switch(state) {
-        case PS_STOP:
+        case PC_STOP:
             exit = 1;
+            current = head;
             break;
-        case PS_PLAY:
+        case PC_PLAY:
             {
                 bytesRead = dataFile.read(mp3Buf, MP3_DECODER_BUF_SIZE);
 
@@ -89,28 +111,55 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
                 Write(hMp3, mp3Buf, &bytesRead);
             }
             break;
-        case PS_PAUSE:
+        case PC_PAUSE:
             OSTimeDly(1);
             continue;
         default:
             break;
         }
 
-        //TODO: implement file changing
-        if (nextSong)
-        {
-            break;
+        if(PC_NONE  != control) {
+            switch(control) {
+            case PC_SKIP:
+                current = current->next;
+                exit = 1;
+                break;
+            case PC_RESTART:
+                if(1 == checkRestartTrack(startTime)) {
+                    current = current->prev;
+                }
+                exit = 1;
+                break;
+            case PC_VOLUP:
+                volumeControl(hMp3, 1);
+                control = PC_NONE;
+                break;
+            case PC_VOLDOWN:
+                volumeControl(hMp3, 0);
+                control = PC_NONE;
+                break;
+            default:
+                break;
+            }
         }
 
         //update the bytes available
         bytesAvailable = dataFile.available();
     }
 
+    //allow the track to change if played through
+    if(PC_PLAY == state && PC_NONE == control) {
+        current = current->next;
+    }
+    control = PC_NONE;
+
     dataFile.close();
 
     Ioctl(hMp3, PJDF_CTRL_MP3_SELECT_COMMAND, 0, 0);
     length = BspMp3SoftResetLen;
     Write(hMp3, (void*)BspMp3SoftReset, &length);
+
+    return state;
 }
 
 // Mp3Stream
@@ -165,7 +214,7 @@ void Mp3Init(HANDLE hMp3)
     length = BspMp3SetClockFLen;
     Write(hMp3, (void*)BspMp3SetClockF, &length);
 
-    length = BspMp3SetVol1010Len;
+    length = BspMp3SetVolLen;
     Write(hMp3, (void*)BspMp3SetVol1010, &length);
 
     length = BspMp3SoftResetLen;
@@ -210,7 +259,7 @@ void Mp3Test(HANDLE hMp3)
     // Make sure we can communicate with the device by sending a command to read a register value
 
     // First set volume to a known value
-    length = BspMp3SetVol1010Len;
+    length = BspMp3SetVolLen;
     Write(hMp3, (void*)BspMp3SetVol1010, &length);
 
     // Now get the volume setting on the device
@@ -227,12 +276,12 @@ void Mp3Test(HANDLE hMp3)
         // set louder volume if i is odd
         if (i & 1)
         {
-            length = BspMp3SetVol1010Len;
+            length = BspMp3SetVolLen;
             Write(hMp3, (void*)BspMp3SetVol1010, &length);
         }
         else
         {
-            length = BspMp3SetVol6060Len;
+            length = BspMp3SetVolLen;
             Write(hMp3, (void*)BspMp3SetVol6060, &length);
         }
 
@@ -254,5 +303,3 @@ void Mp3Test(HANDLE hMp3)
         OSTimeDly(500);
     }
 }
-
-
