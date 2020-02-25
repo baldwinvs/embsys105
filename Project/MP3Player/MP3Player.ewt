@@ -2760,21 +2760,6 @@
     <group>
         <name>MP3data</name>
         <file>
-            <name>$PROJ_DIR$\MP3data\check_please.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\MP3data\dogen.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\MP3data\dogen1_2.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\MP3data\dogen_2.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\MP3data\dogen_full.h</name>
-        </file>
-        <file>
             <name>$PROJ_DIR$\MP3data\GenerateMp3Header.ps1</name>
         </file>
         <file>
