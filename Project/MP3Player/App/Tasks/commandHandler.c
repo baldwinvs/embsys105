@@ -10,14 +10,11 @@
 //Globals
 extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
 extern OS_EVENT * touch2CmdHandler;
-extern OS_EVENT * commandMsgQ;
+extern OS_EVENT * cmdHandler2Stream;
+extern CONTROL stateAndControl[1];
 
 extern TRACK* head;
 extern TRACK* current;
-
-HANDLE _hMp3;
-
-void setMp3Handle(HANDLE);
 
 void CommandHandlerTask(void* pData)
 {
@@ -33,7 +30,6 @@ void CommandHandlerTask(void* pData)
 
     INPUT_COMMAND* msgReceived = NULL;
     uint8_t err;
-    CONTROL command = PC_NONE;
     CONTROL state = PC_STOP;
     CONTROL control = PC_NONE;
 
@@ -71,77 +67,79 @@ void CommandHandlerTask(void* pData)
         //      INPUT CMD == SKIP:
         //              go to the next track and begin playing
         //                  *(use ring buffer of tracks)
-
-        INT32U cpu_sr;
-
-        OS_ENTER_CRITICAL();
-
-        //todo: refactor this ugly thing
-        switch(state) {
-        case PC_STOP:
-            switch(*msgReceived) {
-            case IC_PLAY:
-                state = PC_PLAY;
-                break;
-            case IC_SKIP:
-                current = current->next;
-                break;
-            case IC_RESTART:
-                current = current->prev;
-                break;
-            case IC_VOLUP:
-                control = PC_VOLUP;
-                break;
-            case IC_VOLDOWN:
-                control = PC_VOLDOWN;
-                break;
-            default:
-                break;
-            }
-            break;
-        case PC_PLAY:
-            switch(*msgReceived) {
-            case IC_STOP:
+        switch(*msgReceived) {
+        case IC_STOP:
+            switch(state) {
+            case PC_STOP:
+            case PC_PLAY:
+            case PC_PAUSE:
                 state = PC_STOP;
                 break;
-            case IC_PLAY:
+            default:
+                break;
+            }
+            break;
+        case IC_PLAY:
+            switch(state) {
+            case PC_PLAY:
                 state = PC_PAUSE;
                 break;
-            case IC_SKIP:
-                control = PC_SKIP;
-                break;
-            case IC_RESTART:
-                control = PC_RESTART;
-                break;
-            case IC_VOLUP:
-                control = PC_VOLUP;
-                break;
-            case IC_VOLDOWN:
-                control = PC_VOLDOWN;
+            case PC_STOP:
+            case PC_PAUSE:
+                state = PC_PLAY;
                 break;
             default:
                 break;
             }
             break;
-        case PC_PAUSE:
-            switch(*msgReceived) {
-            case IC_STOP:
+        case IC_SKIP:
+            switch(state) {
+            case PC_STOP:
+                current = current->next;
                 break;
-            case IC_PLAY:
-                state = PC_PLAY;
+            case PC_PLAY:
+                control = PC_SKIP;
                 break;
-            case IC_SKIP:
+            case PC_PAUSE:
                 state = PC_PLAY;
                 control = PC_SKIP;
                 break;
-            case IC_RESTART:
+            default:
+                break;
+            }
+            break;
+        case IC_RESTART:
+            switch(state) {
+            case PC_STOP:
+                current = current->prev;
+                break;
+            case PC_PLAY:
+                control = PC_RESTART;
+                break;
+            case PC_PAUSE:
                 state = PC_PLAY;
                 control = PC_RESTART;
                 break;
-            case IC_VOLUP:
+            default:
+                break;
+            }
+            break;
+        case IC_VOLUP:
+            switch(state) {
+            case PC_STOP:
+            case PC_PLAY:
+            case PC_PAUSE:
                 control = PC_VOLUP;
                 break;
-            case IC_VOLDOWN:
+            default:
+                break;
+            }
+            break;
+        case IC_VOLDOWN:
+            switch(state) {
+            case PC_STOP:
+            case PC_PLAY:
+            case PC_PAUSE:
                 control = PC_VOLDOWN;
                 break;
             default:
@@ -151,16 +149,14 @@ void CommandHandlerTask(void* pData)
         default:
             break;
         }
-        command = (CONTROL)(state | control);
-        OSQPost(commandMsgQ, &command);
 
-        OS_EXIT_CRITICAL();
+        stateAndControl[0] = (CONTROL)(state | control);
+        uint8_t err = OSMboxPostOpt(cmdHandler2Stream, stateAndControl, OS_POST_OPT_NONE);
+
+        if(OS_ERR_NONE != err) {
+            PrintFormattedString("CommandHandlerTask: failed to post cmdHandler2Stream with error %d\n", (INT32U)err);
+        }
 
         control = PC_NONE;
     }
-}
-
-void setMp3Handle(HANDLE hMp3)
-{
-    _hMp3 = hMp3;
 }

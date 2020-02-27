@@ -1297,6 +1297,7 @@
                     <state>USE_STDPERIPH_DRIVER</state>
                     <state>STM32F401xx</state>
                     <state>NDEBUG</state>
+                    <state>BUFSIZE=256</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -1435,6 +1436,8 @@
                     <state>$PROJ_DIR$\Adafruit\Adafruit_ILI9341</state>
                     <state>$PROJ_DIR$\Arduino\SD\src</state>
                     <state>$PROJ_DIR$\Arduino\SD\src\utility</state>
+                    <state>$PROJ_DIR$\GUI</state>
+                    <state>$PROJ_DIR$\App</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>

@@ -43,12 +43,12 @@
 #define OS_MAX_FLAGS              5u   /* Max. number of Event Flag Groups    in your application      */
 #define OS_MAX_MEM_PART           5u   /* Max. number of memory partitions                             */
 #define OS_MAX_QS                 4u   /* Max. number of queue control blocks in your application      */
-#define OS_MAX_TASKS             20u   /* Max. number of tasks in your application, MUST be >= 2       */
+#define OS_MAX_TASKS              8u   /* Max. number of tasks in your application, MUST be >= 2       */
 
 #define OS_SCHED_LOCK_EN          1u   /* Include code for OSSchedLock() and OSSchedUnlock()           */
 
 #define OS_TICK_STEP_EN           1u   /* Enable tick stepping feature for uC/OS-View                  */
-#define OS_TICKS_PER_SEC        100u   /* Set the number of ticks in one second                        */
+#define OS_TICKS_PER_SEC       1000u   /* Set the number of ticks in one second                        */
 
 
                                        /* --------------------- TASK STACK SIZE ---------------------- */
@@ -106,7 +106,7 @@
 
 
                                        /* ---------------------- MESSAGE QUEUES ---------------------- */
-#define OS_Q_EN                   1u   /* Enable (1) or Disable (0) code generation for QUEUES         */
+#define OS_Q_EN                   0u   /* Enable (1) or Disable (0) code generation for QUEUES         */
 #define OS_Q_ACCEPT_EN            1u   /*     Include code for OSQAccept()                             */
 #define OS_Q_DEL_EN               1u   /*     Include code for OSQDel()                                */
 #define OS_Q_FLUSH_EN             1u   /*     Include code for OSQFlush()                              */
@@ -134,7 +134,7 @@
 
 
                                        /* --------------------- TIMER MANAGEMENT --------------------- */
-#define OS_TMR_EN                 1u   /* Enable (1) or Disable (0) code generation for TIMERS         */
+#define OS_TMR_EN                 0u   /* Enable (1) or Disable (0) code generation for TIMERS         */
 #define OS_TMR_CFG_MAX           16u   /*     Maximum number of timers                                 */
 #define OS_TMR_CFG_NAME_EN        1u   /*     Determine timer names                                    */
 #define OS_TMR_CFG_WHEEL_SIZE     8u   /*     Size of timer wheel (#Spokes)                            */

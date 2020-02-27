@@ -13,10 +13,7 @@
 
 //Globals
 extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
-extern OS_EVENT * commandMsgQ;
-
-
-extern void setMp3Handle(HANDLE);
+extern OS_EVENT * cmdHandler2Stream;
 
 static uint32_t trackListSize = 0;
 TRACK* head = NULL;
@@ -47,8 +44,6 @@ void StreamingTask(void* pData)
     // Open handle to the MP3 decoder driver
     HANDLE hMp3 = Open(PJDF_DEVICE_ID_MP3_VS1053, 0);
     if (!PJDF_IS_VALID_HANDLE(hMp3)) while(1);
-
-    setMp3Handle(hMp3);
 
 	PrintFormattedString("Opening MP3 SPI driver: %s\n", MP3_SPI_DEVICE_ID);
     // We talk to the MP3 decoder over a SPI interface therefore
@@ -203,15 +198,10 @@ void initFileList()
 void checkCommandQueue()
 {
     CONTROL * command = NULL;
-    INT8U err = OS_ERR_NONE;
-    command = (CONTROL *)OSQAccept(commandMsgQ, &err);
+    command = (CONTROL *)OSMboxAccept(cmdHandler2Stream);
 
     if(NULL == command) {
         return;
-    }
-
-    if(OS_ERR_NONE != err) {
-        PrintFormattedString("StreamingTask: OSQAccept gave error code %d\n", (INT32U)err);
     }
 
     char stateStr[6] = {0};

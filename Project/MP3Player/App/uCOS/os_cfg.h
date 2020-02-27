@@ -43,12 +43,12 @@
 #define OS_MAX_FLAGS              5u   /* Max. number of Event Flag Groups    in your application      */
 #define OS_MAX_MEM_PART           5u   /* Max. number of memory partitions                             */
 #define OS_MAX_QS                 4u   /* Max. number of queue control blocks in your application      */
-#define OS_MAX_TASKS             20u   /* Max. number of tasks in your application, MUST be >= 2       */
+#define OS_MAX_TASKS              8u   /* Max. number of tasks in your application, MUST be >= 2       */
 
 #define OS_SCHED_LOCK_EN          1u   /* Include code for OSSchedLock() and OSSchedUnlock()           */
 
 #define OS_TICK_STEP_EN           1u   /* Enable tick stepping feature for uC/OS-View                  */
-#define OS_TICKS_PER_SEC         60u   /* Set the number of ticks in one second                        */
+#define OS_TICKS_PER_SEC       1000u   /* Set the number of ticks in one second                        */
 
 #define OS_TLS_TBL_SIZE           0u   /* Size of Thread-Local Storage Table                           */
 
@@ -87,11 +87,11 @@
                                        /* -------------------- MESSAGE MAILBOXES --------------------- */
 #define OS_MBOX_EN                1u   /* Enable (1) or Disable (0) code generation for MAILBOXES      */
 #define OS_MBOX_ACCEPT_EN         1u   /*     Include code for OSMboxAccept()                          */
-#define OS_MBOX_DEL_EN            1u   /*     Include code for OSMboxDel()                             */
-#define OS_MBOX_PEND_ABORT_EN     1u   /*     Include code for OSMboxPendAbort()                       */
+#define OS_MBOX_DEL_EN            0u   /*     Include code for OSMboxDel()                             */
+#define OS_MBOX_PEND_ABORT_EN     0u   /*     Include code for OSMboxPendAbort()                       */
 #define OS_MBOX_POST_EN           1u   /*     Include code for OSMboxPost()                            */
 #define OS_MBOX_POST_OPT_EN       1u   /*     Include code for OSMboxPostOpt()                         */
-#define OS_MBOX_QUERY_EN          1u   /*     Include code for OSMboxQuery()                           */
+#define OS_MBOX_QUERY_EN          0u   /*     Include code for OSMboxQuery()                           */
 
 
                                        /* --------------------- MEMORY MANAGEMENT -------------------- */
@@ -108,7 +108,7 @@
 
 
                                        /* ---------------------- MESSAGE QUEUES ---------------------- */
-#define OS_Q_EN                   1u   /* Enable (1) or Disable (0) code generation for QUEUES         */
+#define OS_Q_EN                   0u   /* Enable (1) or Disable (0) code generation for QUEUES         */
 #define OS_Q_ACCEPT_EN            1u   /*     Include code for OSQAccept()                             */
 #define OS_Q_DEL_EN               1u   /*     Include code for OSQDel()                                */
 #define OS_Q_FLUSH_EN             1u   /*     Include code for OSQFlush()                              */

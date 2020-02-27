@@ -45,13 +45,16 @@ void PrintToLcdWithBuf(char *buf, int size, char *format, ...);
 
 // Globals
 OS_FLAG_GRP *rxFlags = 0;       // Event flags for synchronizing mailbox messages
-OS_EVENT * touch2CmdHandler;
+OS_EVENT * touch2CmdHandler;    // Message mailbox connecting touchPolling to commandHandler
+OS_EVENT * touch2LcdHandler;    // Message mailbox connecting touchPolling to lcdHandler
+OS_EVENT * cmdHandler2Stream;   // Message mailbox connecting commandHandler to streaming
+OS_EVENT * stream2LcdHandler;   // Message mailbox connecting streaming to lcdHandler
 OS_EVENT * semPrint;
 
-void* commandBuffer[4] = {0};
-OS_EVENT * commandMsgQ;
-
 INPUT_COMMAND commandPressed[1];
+uint16_t touch2LcdMessage[1];
+CONTROL stateAndControl[1];
+char songTitle[64];
 
 /************************************************************************************
 
@@ -63,9 +66,24 @@ void StartupTask(void* pdata)
 {
     uint8_t err = 0;
 
-    touch2CmdHandler = OSMboxCreate((void*)0);
+    touch2CmdHandler = OSMboxCreate(NULL);
     if(NULL == touch2CmdHandler) {
         PrintFormattedString("StartupTask: failed to create touch2CmdHandler\n");
+    }
+
+    touch2LcdHandler = OSMboxCreate(NULL);
+    if(NULL == touch2LcdHandler) {
+        PrintFormattedString("StartupTask: failed to create touch2LcdHandler\n");
+    }
+
+    cmdHandler2Stream = OSMboxCreate(NULL);
+    if(NULL == cmdHandler2Stream) {
+        PrintFormattedString("StartupTask: failed to create cmdHandler2Stream\n");
+    }
+
+    stream2LcdHandler = OSMboxCreate(NULL);
+    if(NULL == stream2LcdHandler) {
+        PrintFormattedString("StartupTask: failed to create stream2LcdHandler\n");
     }
 
     rxFlags = OSFlagCreate((OS_FLAGS)0, &err);
@@ -76,12 +94,6 @@ void StartupTask(void* pdata)
     semPrint = OSSemCreate(1);
     if(NULL == semPrint) {
         PrintFormattedString("StartupTask: failed to create semPrint\n");
-    }
-
-    const uint16_t commandBufferSize = sizeof(commandBuffer)/sizeof(void*);
-    commandMsgQ = OSQCreate(commandBuffer, commandBufferSize);
-    if(NULL == commandMsgQ) {
-        PrintFormattedString("StartupTask: failed to create commandMsgQ\n");
     }
 
 	PrintFormattedString("StartupTask: Begin\n");

@@ -53,6 +53,7 @@ dkms.conf
 
 # IAR debug and setting files
 **/Debug/*
+**/Release/*
 **/settings/*
 *.dep
 *.ewd

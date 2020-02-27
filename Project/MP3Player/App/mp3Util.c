@@ -15,12 +15,9 @@
 
 extern TRACK* head;
 extern TRACK* current;
-extern OS_EVENT * commandMsgQ;
 extern CONTROL state;
 extern CONTROL control;
 extern INT8U volume[4];
-
-void delay(uint32_t time);  //todo: move this to main.c
 
 static File dataFile;
 
@@ -77,7 +74,7 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
     if (!dataFile)
     {
         PrintFormattedString("Error: could not open SD card file '%s'\n", pFilename);
-        return PC_STOP;
+        return;
     }
 
     INT8U mp3Buf[MP3_DECODER_BUF_SIZE];
@@ -158,8 +155,6 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
     Ioctl(hMp3, PJDF_CTRL_MP3_SELECT_COMMAND, 0, 0);
     length = BspMp3SoftResetLen;
     Write(hMp3, (void*)BspMp3SoftReset, &length);
-
-    return state;
 }
 
 // Mp3Stream
