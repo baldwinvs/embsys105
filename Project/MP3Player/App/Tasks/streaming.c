@@ -23,6 +23,9 @@ CONTROL state = PC_STOP;
 CONTROL control = PC_NONE;
 INT8U volume[4];
 
+const uint8_t VOLUME_UP = 1;
+const uint8_t VOLUME_DOWN = 0;
+
 void initFileList();
 void checkCommandQueue();
 void volumeControl(HANDLE, INT8U);
@@ -96,7 +99,26 @@ void StreamingTask(void* pData)
             PrintFormattedString("Now playing: %s\n", current->trackName);
             Mp3StreamSDFile(hMp3, current->fileName);
             break;
+        case PC_STOP:
+            switch(control) {
+            case PC_SKIP:
+                current = current->next;
+                break;
+            case PC_RESTART:
+                current = current->prev;
+                break;
+            case PC_VOLUP:
+                volumeControl(hMp3, VOLUME_UP);
+                break;
+            case PC_VOLDOWN:
+                volumeControl(hMp3, VOLUME_DOWN);
+                break;
+            default:
+                break;
+            }
         }
+        control = PC_NONE;
+
         OSTimeDly(1);
     }
 }
@@ -249,12 +271,12 @@ void checkCommandQueue()
     }
 }
 
-void volumeControl(HANDLE hMp3, INT8U vol_up)
+void volumeControl(HANDLE hMp3, INT8U vol_ctrl)
 {
     INT32U length = BspMp3SetVolLen;
     INT8U vol_LR = volume[3];
 
-    if(0 != vol_up) {
+    if(VOLUME_UP == vol_ctrl) {
         if(vol_LR == 0xFE)      vol_LR = 0x80;
         else if(vol_LR >= 0x10) vol_LR -= 0x10;
         else                    vol_LR = 0x00;

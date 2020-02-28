@@ -36,5 +36,8 @@ const SQUARE_BUTTON skip_square = {"", OS_TRUE, 125, 240, 105, 70};
 const SQUARE_BUTTON vol_dwn = {"-", OS_FALSE, 0, 0, 40, 40};
 const SQUARE_BUTTON vol_up = {"+", OS_FALSE, 200, 0, 40, 40};
 const SQUARE_BUTTON vol_bar = {"", OS_TRUE, 40, 18, 160, 4};
+const TRIANGLE play_icon = {173, 240, 93, 194, 93, 286}; //r = 13
+const SQUARE_BUTTON pause_left_icon = {"", OS_TRUE, 90, 194, 20, 92};
+const SQUARE_BUTTON pause_right_icon = {"", OS_TRUE, 130, 194, 20, 92};
 
 #endif /* BUTTONS_H_ */

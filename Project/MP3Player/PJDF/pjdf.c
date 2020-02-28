@@ -19,8 +19,6 @@ static char *DeviceDriverIDs [] =
 
 #define MAXDEVICES (sizeof(DeviceDriverIDs)/sizeof(char*))
 
-extern void PrintToLcdWithBuf(char *buf, int size, char *format, ...);
-
 // PJDF DEVELOPER TODO: add the reference to your driver's pName and Init() function here:
 // IMPORTANT: maintain the same order as in PJDF_DEVICE_IDS
 static DriverInternal driversInternal[MAXDEVICES] =

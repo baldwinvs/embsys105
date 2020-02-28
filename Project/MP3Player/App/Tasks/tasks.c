@@ -44,11 +44,12 @@ static OS_STK TaskRxFlagsStk[APP_CFG_TASK_START_STK_SIZE];
 void PrintToLcdWithBuf(char *buf, int size, char *format, ...);
 
 // Globals
-OS_FLAG_GRP *rxFlags = 0;       // Event flags for synchronizing mailbox messages
-OS_EVENT * touch2CmdHandler;    // Message mailbox connecting touchPolling to commandHandler
-OS_EVENT * touch2LcdHandler;    // Message mailbox connecting touchPolling to lcdHandler
-OS_EVENT * cmdHandler2Stream;   // Message mailbox connecting commandHandler to streaming
-OS_EVENT * stream2LcdHandler;   // Message mailbox connecting streaming to lcdHandler
+OS_FLAG_GRP *rxFlags = 0;           // Event flags for synchronizing mailbox messages
+OS_EVENT * touch2CmdHandler;        // Message mailbox connecting touchPolling to commandHandler
+OS_EVENT * touch2LcdHandler;        // Message mailbox connecting touchPolling to lcdHandler
+OS_EVENT * cmdHandler2Stream;       // Message mailbox connecting commandHandler to streaming
+OS_EVENT * cmdHandler2LcdHandler;   // Message mailbox connecting commandHandler to lcdHandler
+OS_EVENT * stream2LcdHandler;       // Message mailbox connecting streaming to lcdHandler
 OS_EVENT * semPrint;
 
 INPUT_COMMAND commandPressed[1];
@@ -79,6 +80,11 @@ void StartupTask(void* pdata)
     cmdHandler2Stream = OSMboxCreate(NULL);
     if(NULL == cmdHandler2Stream) {
         PrintFormattedString("StartupTask: failed to create cmdHandler2Stream\n");
+    }
+
+    cmdHandler2LcdHandler = OSMboxCreate(NULL);
+    if(NULL == cmdHandler2LcdHandler) {
+        PrintFormattedString("StartupTask: failed to create cmdHandler2LcdHandler\n");
     }
 
     stream2LcdHandler = OSMboxCreate(NULL);

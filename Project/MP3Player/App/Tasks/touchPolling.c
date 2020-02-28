@@ -183,6 +183,44 @@ void TouchPollingTask(void* pData)
                             }
                         }
                         break;
+                    case IC_RESTART:
+                        if(0 == oneSecondElapsed) {
+                            if(OSTimeGet() - startTime < OS_TICKS_PER_SEC) {
+                                OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
+                            }
+                            else {
+                                // send the alternate command
+                                commandPressed[0] = IC_RWD;
+                                oneSecondElapsed = 1;
+                            }
+                        }
+                        break;
+                    case IC_RWD:
+                        if(OS_ERR_NONE != OSMboxPostOpt(touch2CmdHandler, commandPressed, OS_POST_OPT_NONE)) {
+                            PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler, aborting hold.\n");
+                            break;
+                        }
+                        OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
+                        break;
+                    case IC_SKIP:
+                        if(0 == oneSecondElapsed) {
+                            if(OSTimeGet() - startTime < OS_TICKS_PER_SEC) {
+                                OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
+                            }
+                            else {
+                                // send the alternate command
+                                commandPressed[0] = IC_FF;
+                                oneSecondElapsed = 1;
+                            }
+                        }
+                        break;
+                    case IC_FF:
+                        if(OS_ERR_NONE != OSMboxPostOpt(touch2CmdHandler, commandPressed, OS_POST_OPT_NONE)) {
+                            PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler, aborting hold.\n");
+                            break;
+                        }
+                        OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
+                        break;
                     default:
                         OSTimeDly(delayTicks);
                         break;

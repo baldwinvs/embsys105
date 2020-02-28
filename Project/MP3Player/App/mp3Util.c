@@ -19,6 +19,9 @@ extern CONTROL state;
 extern CONTROL control;
 extern INT8U volume[4];
 
+extern const uint8_t VOLUME_UP = 1;
+extern const uint8_t VOLUME_DOWN = 0;
+
 static File dataFile;
 
 extern void checkCommandQueue();
@@ -128,11 +131,11 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
                 exit = 1;
                 break;
             case PC_VOLUP:
-                volumeControl(hMp3, 1);
+                volumeControl(hMp3, VOLUME_UP);
                 control = PC_NONE;
                 break;
             case PC_VOLDOWN:
-                volumeControl(hMp3, 0);
+                volumeControl(hMp3, VOLUME_DOWN);
                 control = PC_NONE;
                 break;
             default:

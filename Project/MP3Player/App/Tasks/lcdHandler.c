@@ -4,10 +4,12 @@
 #include "print.h"
 
 #include "Buttons.h"
+#include "PlayerControl.h"
 
 //Globals
 extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
 extern OS_EVENT * touch2LcdHandler;
+extern OS_EVENT * cmdHandler2LcdHandler;
 
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ILI9341.h>
@@ -62,6 +64,8 @@ static void DrawLcdContents()
 
     lcdCtrl.fillCircle(play_circle.x, play_circle.y, play_circle.r, BURNT_ORANGE);
     lcdCtrl.fillCircle(play_circle.x, play_circle.y, play_circle.r-3, BLUE);
+
+    lcdCtrl.fillTriangle(play_icon.x0, play_icon.y0, play_icon.x1, play_icon.y1, play_icon.x2, play_icon.y2, BURNT_ORANGE);
 }
 
 void LcdHandlerTask(void* pData)
@@ -101,34 +105,124 @@ void LcdHandlerTask(void* pData)
             PrintFormattedString("LcdHandlerTask: posting to flag group with error code %d\n", (INT32U)err);
         }
     }
-    uint16_t* msgReceived = NULL;
+    uint32_t* msgReceived = NULL;
     uint8_t stopped = 0;
     uint8_t lastCount = 0;
+    uint8_t paused = 0;
     while(1) {
-        msgReceived = (uint16_t*)OSMboxAccept(touch2LcdHandler);
+        msgReceived = (uint32_t*)OSMboxAccept(touch2LcdHandler);
         if(NULL != msgReceived) {
             // 0xAABB, AA is max count, BB is current count
             uint8_t max = (*msgReceived >> 8) & 0x00FF;
             uint8_t count = *msgReceived & 0x00FF;
 
             if(count % (max + 1) != 0) {
-                lcdCtrl.drawFastHLine(10, 220 - count, 10, BURNT_ORANGE);
-                lcdCtrl.drawFastHLine(220, 220 - count, 10, BURNT_ORANGE);
+                const uint8_t adjustedCount = 4 * count;
+                //Draw the lower left progress bar
+                lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 3), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 2), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 1), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(0, 320 - (adjustedCount),     5, BURNT_ORANGE);
+                //Draw the lower right progress bar
+                lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 3), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 2), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 1), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(235, 320 - (adjustedCount),     5, BURNT_ORANGE);
+                //Draw the upper left progress bar
+                lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 3), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 2), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 1), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(0, 0 + (adjustedCount),     5, BURNT_ORANGE);
+                //Draw the upper right progress bar
+                lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 3), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 2), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 1), 5, BURNT_ORANGE);
+                lcdCtrl.drawFastHLine(235, 0 + (adjustedCount),     5, BURNT_ORANGE);
                 lastCount = count;
             }
             else {
                 stopped = 1;
             }
         }
+
+        msgReceived = (uint32_t*)OSMboxAccept(cmdHandler2LcdHandler);
+        if(NULL != msgReceived) {
+            switch(*(CONTROL *)msgReceived) {
+            case PC_STOP:
+                if(OS_FALSE == paused) {
+                    lcdCtrl.fillRoundRect(pause_left_icon.x, pause_left_icon.y,
+                                          pause_left_icon.w, pause_left_icon.h,
+                                          1, BLUE);
+                    lcdCtrl.fillRoundRect(pause_right_icon.x, pause_right_icon.y,
+                                          pause_right_icon.w, pause_right_icon.h,
+                                          1, BLUE);
+                    lcdCtrl.fillTriangle(play_icon.x0, play_icon.y0,
+                                         play_icon.x1, play_icon.y1,
+                                         play_icon.x2, play_icon.y2,
+                                         BURNT_ORANGE);
+                    paused = OS_FALSE;
+                }
+                break;
+            case PC_PLAY:
+                lcdCtrl.fillTriangle(play_icon.x0, play_icon.y0,
+                                     play_icon.x1, play_icon.y1,
+                                     play_icon.x2, play_icon.y2,
+                                     BLUE);
+                lcdCtrl.fillRoundRect(pause_left_icon.x, pause_left_icon.y,
+                                      pause_left_icon.w, pause_left_icon.h,
+                                      1, BURNT_ORANGE);
+                lcdCtrl.fillRoundRect(pause_right_icon.x, pause_right_icon.y,
+                                      pause_right_icon.w, pause_right_icon.h,
+                                      1, BURNT_ORANGE);
+                paused = OS_FALSE;
+                break;
+            case PC_PAUSE:
+                lcdCtrl.fillRoundRect(pause_left_icon.x, pause_left_icon.y,
+                                      pause_left_icon.w, pause_left_icon.h,
+                                      1, BLUE);
+                lcdCtrl.fillRoundRect(pause_right_icon.x, pause_right_icon.y,
+                                      pause_right_icon.w, pause_right_icon.h,
+                                      1, BLUE);
+                lcdCtrl.fillTriangle(play_icon.x0, play_icon.y0,
+                                     play_icon.x1, play_icon.y1,
+                                     play_icon.x2, play_icon.y2,
+                                     BURNT_ORANGE);
+                paused = OS_TRUE;
+                break;
+            default:
+                break;
+            }
+        }
+
+        //Update other things when stopping before erasing lines.
         if(1 == stopped) {
             while(lastCount) {
-                lcdCtrl.drawFastHLine(10, 220 - lastCount, 10, ILI9341_BLACK);
-                lcdCtrl.drawFastHLine(220, 220 - lastCount, 10, ILI9341_BLACK);
+                const uint8_t adjustedCount = 4 * lastCount;
+                //Erase the lower left progress bar
+                lcdCtrl.drawFastHLine(0, 320 - (adjustedCount),     5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 1), 5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 2), 5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 3), 5, ILI9341_BLACK);
+                //Erase the lower right progress bar
+                lcdCtrl.drawFastHLine(235, 320 - (adjustedCount),     5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 1), 5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 2), 5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 3), 5, ILI9341_BLACK);
+                //Erase the upper left progress bar
+                lcdCtrl.drawFastHLine(0, 0 + (adjustedCount),     5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 1), 5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 2), 5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 3), 5, ILI9341_BLACK);
+                //Erase the upper right progress bar
+                lcdCtrl.drawFastHLine(235, 0 + (adjustedCount),     5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 1), 5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 2), 5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 3), 5, ILI9341_BLACK);
                 --lastCount;
             }
             stopped = 0;
         }
 
-        OSTimeDly(5);
+        OSTimeDly(10);
     }
 }

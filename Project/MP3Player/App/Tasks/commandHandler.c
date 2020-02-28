@@ -11,6 +11,7 @@
 extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
 extern OS_EVENT * touch2CmdHandler;
 extern OS_EVENT * cmdHandler2Stream;
+extern OS_EVENT * cmdHandler2LcdHandler;
 extern CONTROL stateAndControl[1];
 
 extern TRACK* head;
@@ -95,7 +96,7 @@ void CommandHandlerTask(void* pData)
         case IC_SKIP:
             switch(state) {
             case PC_STOP:
-                current = current->next;
+                control = PC_SKIP;
                 break;
             case PC_PLAY:
                 control = PC_SKIP;
@@ -111,7 +112,7 @@ void CommandHandlerTask(void* pData)
         case IC_RESTART:
             switch(state) {
             case PC_STOP:
-                current = current->prev;
+                control = PC_RESTART;
                 break;
             case PC_PLAY:
                 control = PC_RESTART;
@@ -120,6 +121,28 @@ void CommandHandlerTask(void* pData)
                 state = PC_PLAY;
                 control = PC_RESTART;
                 break;
+            default:
+                break;
+            }
+            break;
+        case IC_FF:
+            switch(state) {
+            case PC_PLAY:
+            case PC_PAUSE:
+                state = PC_FF;
+                break;
+            case PC_STOP:
+            default:
+                break;
+            }
+            break;
+        case IC_RWD:
+            switch(state) {
+            case PC_PLAY:
+            case PC_PAUSE:
+                state = PC_RWD;
+                break;
+            case PC_STOP:
             default:
                 break;
             }
@@ -147,12 +170,16 @@ void CommandHandlerTask(void* pData)
             }
             break;
         default:
-            break;
+            continue;
         }
 
         stateAndControl[0] = (CONTROL)(state | control);
         uint8_t err = OSMboxPostOpt(cmdHandler2Stream, stateAndControl, OS_POST_OPT_NONE);
+        if(OS_ERR_NONE != err) {
+            PrintFormattedString("CommandHandlerTask: failed to post cmdHandler2Stream with error %d\n", (INT32U)err);
+        }
 
+        err = OSMboxPostOpt(cmdHandler2LcdHandler, stateAndControl, OS_POST_OPT_NONE);
         if(OS_ERR_NONE != err) {
             PrintFormattedString("CommandHandlerTask: failed to post cmdHandler2Stream with error %d\n", (INT32U)err);
         }
