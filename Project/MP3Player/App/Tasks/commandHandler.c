@@ -19,13 +19,18 @@ extern TRACK* current;
 
 void CommandHandlerTask(void* pData)
 {
+#if DEBUG
     PrintFormattedString("CommandHandlerTask: starting\n");
+#endif
 
     {
         INT8U err;
         OSFlagPost(rxFlags, 4, OS_FLAG_SET, &err);
         if(OS_ERR_NONE != err) {
+#if DEBUG
             PrintFormattedString("CommandHandlerTask: posting to flag group with error code %d\n", (INT32U)err);
+#endif
+            while(1);
         }
     }
 
@@ -37,7 +42,10 @@ void CommandHandlerTask(void* pData)
     while(1) {
         msgReceived = (INPUT_COMMAND*)OSMboxPend(touch2CmdHandler, 0, &err);
         if(OS_ERR_NONE != err) {
+#if DEBUG
             PrintFormattedString("CommandHandlerTask: pending on mboxA with error code %d\n", (INT32U)err);
+#endif
+            while(1);
         }
 
         //START
@@ -87,6 +95,8 @@ void CommandHandlerTask(void* pData)
                 break;
             case PC_STOP:
             case PC_PAUSE:
+            case PC_FF:
+            case PC_RWD:
                 state = PC_PLAY;
                 break;
             default:
@@ -176,12 +186,16 @@ void CommandHandlerTask(void* pData)
         stateAndControl[0] = (CONTROL)(state | control);
         uint8_t err = OSMboxPostOpt(cmdHandler2Stream, stateAndControl, OS_POST_OPT_NONE);
         if(OS_ERR_NONE != err) {
+#if DEBUG
             PrintFormattedString("CommandHandlerTask: failed to post cmdHandler2Stream with error %d\n", (INT32U)err);
+#endif
         }
 
         err = OSMboxPostOpt(cmdHandler2LcdHandler, stateAndControl, OS_POST_OPT_NONE);
         if(OS_ERR_NONE != err) {
+#if DEBUG
             PrintFormattedString("CommandHandlerTask: failed to post cmdHandler2Stream with error %d\n", (INT32U)err);
+#endif
         }
 
         control = PC_NONE;

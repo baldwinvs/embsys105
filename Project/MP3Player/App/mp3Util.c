@@ -13,6 +13,11 @@
 #include "PlayerControl.h"
 #include "LinkedList.h"
 
+extern OS_EVENT * stream2LcdHandler;
+extern OS_EVENT * progressMessage;
+extern char songTitle[64];
+extern float progressValue;
+
 extern TRACK* head;
 extern TRACK* current;
 extern CONTROL state;
@@ -37,6 +42,24 @@ uint32_t checkRestartTrack(const uint32_t start)
         return 1;
     }
     return 0;
+}
+
+static BOOLEAN writeNextSample(HANDLE hMp3)
+{
+    static INT8U mp3Buf[MP3_DECODER_BUF_SIZE] = {0};
+    static INT32U bytesRead = 0;
+
+    bytesRead = dataFile.read(mp3Buf, MP3_DECODER_BUF_SIZE);
+
+    if(-1 == bytesRead) {
+        PrintFormattedString("Error reading data file!\nPossible errors include:\n"
+                             "\tread() called before a file has been opened,\n"
+                             "\tcorrupt file system,\n"
+                             "\tor an I/O error has occurred.\n");
+        return OS_TRUE;
+    }
+    Write(hMp3, mp3Buf, &bytesRead);
+    return OS_FALSE;
 }
 
 static void Mp3StreamInit(HANDLE hMp3)
@@ -80,40 +103,52 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
         return;
     }
 
-    INT8U mp3Buf[MP3_DECODER_BUF_SIZE];
-    INT32U bytesRead = 0;
     INT32U startTime = OSTimeGet();
-    INT8U exit = 0;
+    BOOLEAN exit = OS_FALSE;
+    INT8U iteration = 0;
+    const INT8U progressSampleRate = 40;
+    const INT8U fastForwardMultiplier = 20;
+    const INT8U rewindMultiplier = 20;
 
     INT32S bytesAvailable = dataFile.available();
+    const INT32U fileSize = dataFile.size();
 
-    while (bytesAvailable && 0 == exit)
+    while (bytesAvailable && OS_FALSE == exit)
     {
         checkCommandQueue();
 
-        //might need a mutex here
         switch(state) {
         case PC_STOP:
             exit = 1;
             current = head;
+            memcpy(songTitle, current->trackName, 64);
             break;
         case PC_PLAY:
-            {
-                bytesRead = dataFile.read(mp3Buf, MP3_DECODER_BUF_SIZE);
-
-                if(-1 == bytesRead) {
-                    PrintFormattedString("Error reading data file!\nPossible errors include:\n"
-                                         "\tread() called before a file has been opened,\n"
-                                         "\tcorrupt file system,\n"
-                                         "\tor an I/O error has occurred.\n");
-                    exit = 1;
-                }
-                Write(hMp3, mp3Buf, &bytesRead);
-            }
+            exit = writeNextSample(hMp3);
             break;
         case PC_PAUSE:
             OSTimeDly(1);
             continue;
+        case PC_FF:
+            if(dataFile.size() - dataFile.position() > fastForwardMultiplier * MP3_DECODER_BUF_SIZE) {
+                dataFile.seek(dataFile.position() + fastForwardMultiplier * MP3_DECODER_BUF_SIZE);
+            }
+            else {
+                dataFile.seek(dataFile.size() - MP3_DECODER_BUF_SIZE);
+            }
+
+            exit = writeNextSample(hMp3);
+            break;
+        case PC_RWD:
+            if(dataFile.position() > rewindMultiplier * MP3_DECODER_BUF_SIZE) {
+                dataFile.seek(dataFile.position() - rewindMultiplier * MP3_DECODER_BUF_SIZE);
+            }
+            else {
+                dataFile.seek(0);
+            }
+
+            exit = writeNextSample(hMp3);
+            break;
         default:
             break;
         }
@@ -122,13 +157,15 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
             switch(control) {
             case PC_SKIP:
                 current = current->next;
-                exit = 1;
+                memcpy(songTitle, current->trackName, 64);
+                exit = OS_TRUE;
                 break;
             case PC_RESTART:
                 if(1 == checkRestartTrack(startTime)) {
                     current = current->prev;
+                    memcpy(songTitle, current->trackName, 64);
                 }
-                exit = 1;
+                exit = OS_TRUE;
                 break;
             case PC_VOLUP:
                 volumeControl(hMp3, VOLUME_UP);
@@ -145,6 +182,15 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
 
         //update the bytes available
         bytesAvailable = dataFile.available();
+
+
+        if(0 == iteration++ % progressSampleRate) {
+            //send the progress
+            progressValue = 100.0f * (float)dataFile.position() / fileSize;
+
+            //don't report errors
+            OSMboxPostOpt(progressMessage, &progressValue, OS_POST_OPT_NONE);
+        }
     }
 
     //allow the track to change if played through
@@ -152,6 +198,7 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
         current = current->next;
     }
     control = PC_NONE;
+    progressValue = 0.0f;
 
     dataFile.close();
 
@@ -167,6 +214,7 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
 // bufLen: number of bytes of MP3 data to stream
 void Mp3Stream(HANDLE hMp3, INT8U *pBuf, INT32U bufLen)
 {
+
     INT8U *bufPos = pBuf;
     INT32U iBufPos = 0;
     INT32U length;

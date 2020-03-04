@@ -14,6 +14,10 @@
 //Globals
 extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
 extern OS_EVENT * cmdHandler2Stream;
+extern OS_EVENT * stream2LcdHandler;
+extern OS_EVENT * progressMessage;
+extern char songTitle[64];
+extern float progressValue;
 
 static uint32_t trackListSize = 0;
 TRACK* head = NULL;
@@ -90,22 +94,32 @@ void StreamingTask(void* pData)
         }
     }
 
+    uint8_t err = OS_ERR_NONE;
+
+    INT8U sendTrack = OS_TRUE;
+
     while (1)
     {
         checkCommandQueue();
 
         switch(state) {
         case PC_PLAY:
-            PrintFormattedString("Now playing: %s\n", current->trackName);
+            OSMboxPostOpt(progressMessage, &progressValue, OS_POST_OPT_NONE);
             Mp3StreamSDFile(hMp3, current->fileName);
+            memcpy(songTitle, current->trackName, 64);
+            sendTrack = OS_TRUE;
             break;
         case PC_STOP:
             switch(control) {
             case PC_SKIP:
                 current = current->next;
+                memcpy(songTitle, current->trackName, 64);
+                sendTrack = OS_TRUE;
                 break;
             case PC_RESTART:
                 current = current->prev;
+                memcpy(songTitle, current->trackName, 64);
+                sendTrack = OS_TRUE;
                 break;
             case PC_VOLUP:
                 volumeControl(hMp3, VOLUME_UP);
@@ -118,6 +132,14 @@ void StreamingTask(void* pData)
             }
         }
         control = PC_NONE;
+
+        if(OS_TRUE == sendTrack) {
+            err = OSMboxPostOpt(stream2LcdHandler, songTitle, OS_POST_OPT_NONE);
+            if(OS_ERR_NONE != err) {
+                PrintFormattedString("StreamingTask: failed to post stream2LcdHandler with error %d\n", (INT32U)err);
+            }
+            sendTrack = OS_FALSE;
+        }
 
         OSTimeDly(1);
     }
@@ -132,12 +154,11 @@ void initFileList()
         return;
     }
 
-    uint32_t commaIndex = 0;
+    const size_t ancillaryCharCount= 20;
 
-    //TODO: reverse this so the format is
-    //  trackXXX.mp3,<track name>
+    // TRACK LIST FORMAT IS:
+    //  trackXXX.mXX, <track name>.mXX
     while(file.available()) {
-        //TODO: replace mallocs with memory partitions
         TRACK* track = (TRACK *) malloc(sizeof(TRACK));
         char line[128] = {0};
         memset(track->trackName, 0, 64);
@@ -153,15 +174,12 @@ void initFileList()
                 line[++index] = file.read();
                 continue;
             }
-            if(line[index] == ',') {
-                commaIndex = index;
-            }
 
             ++index;
         }
 
-        strncpy(track->trackName, line, commaIndex - 4);     // subtracting 4 to remove ".mXX"
-        strncpy(track->fileName, &line[commaIndex + 1], 12); // trackxxx.mXX is 12 characters
+        strncpy(track->fileName, line, 12); // trackxxx.mXX is 12 characters
+        strncpy(track->trackName, &line[14], index + 1 - ancillaryCharCount); // subtracting 4 to remove ".mXX"
 
         if(NULL == head) {
             head = track;
@@ -215,6 +233,8 @@ void initFileList()
 
     // Set head to be the current file.
     current = head;
+    // Set the song title
+    memcpy(songTitle, current->trackName, 64);
 }
 
 void checkCommandQueue()
@@ -239,6 +259,14 @@ void checkCommandQueue()
         break;
     case PC_PAUSE:
         strcpy(stateStr, "PAUSE");
+        state = (CONTROL)(*command & stateMask);
+        break;
+    case PC_FF:
+        strcpy(stateStr, "FF");
+        state = (CONTROL)(*command & stateMask);
+        break;
+    case PC_RWD:
+        strcpy(stateStr, "RWD");
         state = (CONTROL)(*command & stateMask);
         break;
     default:

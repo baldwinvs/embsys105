@@ -11,8 +11,6 @@
 
 #include <math.h>
 
-#define PENRADIUS 3
-
 //Globals
 extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
 extern OS_EVENT * touch2CmdHandler;
@@ -29,6 +27,36 @@ Adafruit_FT6206 touchCtrl = Adafruit_FT6206(); // The touch controller
 static long MapTouchToScreen(long x, long in_min, long in_max, long out_min, long out_max)
 {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+uint8_t checkForPress(const TS_Point p, const INT8U index)
+{
+    const BTN btn = btn_array[index];
+    switch(btn.shape) {
+    case S_CIRCLE:
+        {
+            const int32_t xDiff = p.x - btn.p0.p;
+            const int32_t yDiff = p.y - btn.p1.p;
+            const uint32_t dist = (uint32_t)sqrt((xDiff * xDiff) + (yDiff * yDiff));
+            if(dist <= btn.p2.p) {
+                commandPressed[0] = (INPUT_COMMAND)index;
+                return 1;
+            }
+        }
+        return 0;
+    case S_SQUARE:
+        {
+            if(p.x >= btn.p0.p && p.x <= (btn.p0.p + btn.p2.p)) {
+                if(p.y >= btn.p1.p && p.y <= (btn.p1.p + btn.h)) {
+                    commandPressed[0] = (INPUT_COMMAND)index;
+                    return 1;
+                }
+            }
+        }
+        return 0;
+    case S_TRIANGLE:
+    default:
+        return 0;
+    }
 }
 
 /************************************************************************************
@@ -56,9 +84,16 @@ void TouchPollingTask(void* pData)
     }
     else {
         INT8U err;
+        //initialized
         OSFlagPost(rxFlags, 2, OS_FLAG_SET, &err);
         if(OS_ERR_NONE != err) {
             PrintFormattedString("TouchPollingTask: posting to flag group with error code %d\n", (INT32U)err);
+        }
+
+        //wait for other tasks for finish initialization
+        OSFlagPend(rxFlags, 2, OS_FLAG_WAIT_CLR_ALL, 0, &err);
+        if(OS_ERR_NONE != err) {
+            PrintFormattedString("TouchPollingTask: pending on 0x2 value for flag event with error code %d\n", (INT32U)err);
         }
     }
 
@@ -91,7 +126,6 @@ void TouchPollingTask(void* pData)
         }
 
         // transform touch orientation to screen orientation.
-        p = TS_Point();
         p.x = MapTouchToScreen(rawPoint.x, 0, ILI9341_TFTWIDTH, ILI9341_TFTWIDTH, 0);
         p.y = MapTouchToScreen(rawPoint.y, 0, ILI9341_TFTHEIGHT, ILI9341_TFTHEIGHT, 0);
 
@@ -99,51 +133,12 @@ void TouchPollingTask(void* pData)
             output = 0;
 
             uint8_t hit = 0;
-
-            //PLAY CIRCLE
-            {
-                int32_t xDiff = p.x - play_circle.x;
-                int32_t yDiff = p.y - play_circle.y;
-                uint32_t distance = sqrt((xDiff * xDiff) + (yDiff * yDiff));
-                if(distance <= play_circle.r) {
-                    commandPressed[0] = IC_PLAY;
-                    hit = 1;
-                    goto check_hold;
-                }
+            uint8_t index;
+            for(index = 0; index < btn_array_sz; ++index) {
+                hit = checkForPress(p, index);
+                if(1 == hit) break;
             }
 
-            if(p.x >= restart_square.x && p.x <= (restart_square.x + restart_square.w)) {
-                if(p.y >= restart_square.y && p.y <= (restart_square.y + restart_square.h)) {
-                    commandPressed[0] = IC_RESTART;
-                    hit = 1;
-                    goto check_hold;
-                }
-            }
-
-            if(p.x >= skip_square.x && p.x <= (skip_square.x + skip_square.w)) {
-                if(p.y >= skip_square.y && p.y <= (skip_square.y + skip_square.h)) {
-                    commandPressed[0] = IC_SKIP;
-                    hit = 1;
-                    goto check_hold;
-                }
-            }
-
-            if(p.x >= vol_dwn.x && p.x <= (vol_dwn.x + vol_dwn.w)) {
-                if(p.y >= vol_dwn.y && p.y <= (vol_dwn.y + vol_dwn.h)) {
-                    commandPressed[0] = IC_VOLDOWN;
-                    hit = 1;
-                    goto check_hold;
-                }
-            }
-
-            if(p.x >= vol_up.x && p.x <= (vol_up.x + vol_up.w)) {
-                if(p.y >= vol_up.y && p.y <= (vol_up.y + vol_up.h)) {
-                    commandPressed[0] = IC_VOLUP;
-                    hit = 1;
-                    goto check_hold;
-                }
-            }
-        check_hold:
             if(1 == hit) {
                 uint8_t oneSecondElapsed = 0;
                 uint32_t startTime = OSTimeGet();
@@ -233,8 +228,12 @@ void TouchPollingTask(void* pData)
                     PrintFormattedString("TouchPollinTask: failed to post touch2LcdHandler.\n");
                 }
 
-                if(oneSecondElapsed && (IC_STOP != commandPressed[0])) {
+                if(oneSecondElapsed && (IC_STOP != commandPressed[0] && IC_FF != commandPressed[0] && IC_RWD != commandPressed[0])) {
                     continue;
+                }
+
+                if(IC_FF == commandPressed[0] || IC_RWD == commandPressed[0]) {
+                    commandPressed[0] = IC_PLAY;
                 }
 
                 uint8_t err = OSMboxPostOpt(touch2CmdHandler, commandPressed, OS_POST_OPT_NONE);
