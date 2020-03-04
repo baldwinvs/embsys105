@@ -1,0 +1,55 @@
+// Sample code to stream files from the SD card
+
+#include "SD.h"
+
+char buf[BUFSIZE];
+
+PjdfErrCode pjdfErr;
+INT32U length;
+static HANDLE hSPI = 0;
+HANDLE hSD = 0;
+
+// Initialize SD card
+PrintWithBuf(buf, PRINTBUFMAX, "Opening handle to SD driver: %s\n", PJDF_DEVICE_ID_SD_ADAFRUIT);
+hSD = Open(PJDF_DEVICE_ID_SD_ADAFRUIT, 0);
+if (!PJDF_IS_VALID_HANDLE(hSD)) while(1);
+
+
+PrintWithBuf(buf, PRINTBUFMAX, "Opening SD SPI driver: %s\n", SD_SPI_DEVICE_ID);
+// We talk to the SD controller over a SPI interface therefore
+// open an instance of that SPI driver and pass the handle to 
+// the SD driver.
+hSPI = Open(SD_SPI_DEVICE_ID, 0);
+if (!PJDF_IS_VALID_HANDLE(hSPI)) while(1);
+
+length = sizeof(HANDLE);
+pjdfErr = Ioctl(hSD, PJDF_CTRL_SD_SET_SPI_HANDLE, &hSPI, &length);
+if(PJDF_IS_ERROR(pjdfErr)) while(1);
+
+if (!SD.begin(hSD)) {
+	PrintWithBuf(buf, PRINTBUFMAX, "Attempt to initialize SD card failed.\n");
+}
+
+// Endless loop to read files from the root directory and stream them
+File dir = SD.open("/");
+while (1)
+{
+	while (1)
+	{
+		File entry = dir.openNextFile();
+		if (!entry)
+		{
+			break;
+		}
+		if (entry.isDirectory())  // skip directories
+		{
+			entry.close();
+			continue;
+		}
+					
+		Mp3StreamSDFile(hMp3, entry.name()); 
+		
+		entry.close();
+	}
+	dir.seek(0); // reset directory file to read again;
+}
