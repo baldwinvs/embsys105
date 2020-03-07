@@ -16,7 +16,7 @@ extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox mess
 extern OS_EVENT * cmdHandler2Stream;
 extern OS_EVENT * stream2LcdHandler;
 extern OS_EVENT * progressMessage;
-extern char songTitle[64];
+extern char songTitle[SONGLEN];
 extern float progressValue;
 
 static uint32_t trackListSize = 0;
@@ -27,12 +27,9 @@ CONTROL state = PC_STOP;
 CONTROL control = PC_NONE;
 INT8U volume[4];
 
-const uint8_t VOLUME_UP = 1;
-const uint8_t VOLUME_DOWN = 0;
-
 void initFileList();
-void checkCommandQueue();
-void volumeControl(HANDLE, INT8U);
+void checkCommandMailbox();
+void volumeControl(HANDLE, const BOOLEAN);
 /************************************************************************************
 
 Runs MP3 demo code
@@ -100,32 +97,32 @@ void StreamingTask(void* pData)
 
     while (1)
     {
-        checkCommandQueue();
+        checkCommandMailbox();
 
         switch(state) {
         case PC_PLAY:
             OSMboxPostOpt(progressMessage, &progressValue, OS_POST_OPT_NONE);
             Mp3StreamSDFile(hMp3, current->fileName);
-            memcpy(songTitle, current->trackName, 64);
+            memcpy(songTitle, current->trackName, SONGLEN);
             sendTrack = OS_TRUE;
             break;
         case PC_STOP:
             switch(control) {
             case PC_SKIP:
                 current = current->next;
-                memcpy(songTitle, current->trackName, 64);
+                memcpy(songTitle, current->trackName, SONGLEN);
                 sendTrack = OS_TRUE;
                 break;
             case PC_RESTART:
                 current = current->prev;
-                memcpy(songTitle, current->trackName, 64);
+                memcpy(songTitle, current->trackName, SONGLEN);
                 sendTrack = OS_TRUE;
                 break;
             case PC_VOLUP:
-                volumeControl(hMp3, VOLUME_UP);
+                volumeControl(hMp3, OS_TRUE);
                 break;
             case PC_VOLDOWN:
-                volumeControl(hMp3, VOLUME_DOWN);
+                volumeControl(hMp3, OS_FALSE);
                 break;
             default:
                 break;
@@ -151,7 +148,9 @@ void initFileList()
     if (!file)
     {
         PrintFormattedString("Error: could not open SD card file 'songs.txt'\n");
-        return;
+        while(1) {
+            OSTimeDly(OS_TICKS_PER_SEC);
+        }
     }
 
     const size_t ancillaryCharCount= 20;
@@ -161,7 +160,7 @@ void initFileList()
     while(file.available()) {
         TRACK* track = (TRACK *) malloc(sizeof(TRACK));
         char line[128] = {0};
-        memset(track->trackName, 0, 64);
+        memset(track->trackName, 0, SONGLEN);
         memset(track->fileName, 0, 13);
 
         line[0] = file.read();
@@ -234,10 +233,10 @@ void initFileList()
     // Set head to be the current file.
     current = head;
     // Set the song title
-    memcpy(songTitle, current->trackName, 64);
+    memcpy(songTitle, current->trackName, SONGLEN);
 }
 
-void checkCommandQueue()
+void checkCommandMailbox()
 {
     CONTROL * command = NULL;
     command = (CONTROL *)OSMboxAccept(cmdHandler2Stream);
@@ -246,65 +245,16 @@ void checkCommandQueue()
         return;
     }
 
-    char stateStr[6] = {0};
-    char controlStr[8] = {0};
-    switch(*command & stateMask) {
-    case PC_STOP:
-        strcpy(stateStr, "STOP");
-        state = (CONTROL)(*command & stateMask);
-        break;
-    case PC_PLAY:
-        strcpy(stateStr, "PLAY");
-        state = (CONTROL)(*command & stateMask);
-        break;
-    case PC_PAUSE:
-        strcpy(stateStr, "PAUSE");
-        state = (CONTROL)(*command & stateMask);
-        break;
-    case PC_FF:
-        strcpy(stateStr, "FF");
-        state = (CONTROL)(*command & stateMask);
-        break;
-    case PC_RWD:
-        strcpy(stateStr, "RWD");
-        state = (CONTROL)(*command & stateMask);
-        break;
-    default:
-        break;
-    }
-    switch(*command & controlMask) {
-    case PC_SKIP:
-        strcpy(controlStr, "SKIP");
-        control = (CONTROL)(*command & controlMask);
-        break;
-    case PC_RESTART:
-        strcpy(controlStr, "RESTART");
-        control = (CONTROL)(*command & controlMask);
-        break;
-    case PC_VOLUP:
-        strcpy(controlStr, "VOL UP");
-        control = (CONTROL)(*command & controlMask);
-        break;
-    case PC_VOLDOWN:
-        strcpy(controlStr, "VOL DOWN");
-        control = (CONTROL)(*command & controlMask);
-        break;
-    default:
-        break;
-    }
-
-    PrintFormattedString("State changed to %s\n", stateStr);
-    if(control != PC_NONE) {
-        PrintFormattedString("Control changed to %s\n", controlStr);
-    }
+    state = (CONTROL)(*command & stateMask);
+    control = (CONTROL)(*command & controlMask);
 }
 
-void volumeControl(HANDLE hMp3, INT8U vol_ctrl)
+void volumeControl(HANDLE hMp3, const BOOLEAN volume_up)
 {
     INT32U length = BspMp3SetVolLen;
     INT8U vol_LR = volume[3];
 
-    if(VOLUME_UP == vol_ctrl) {
+    if(OS_TRUE == volume_up) {
         if(vol_LR == 0xFE)      vol_LR = 0x80;
         else if(vol_LR >= 0x10) vol_LR -= 0x10;
         else                    vol_LR = 0x00;

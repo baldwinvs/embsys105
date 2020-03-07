@@ -36,7 +36,7 @@ The maximum number of tasks the application can have is defined by OS_MAX_TASKS 
 
 static OS_STK TouchPollingTaskStk[APP_CFG_TASK_START_STK_SIZE];
 static OS_STK StreamingTaskStk[APP_CFG_TASK_STK_SIZE];
-static OS_STK LcdHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE];
+static OS_STK LcdHandlerTaskStk[APP_CFG_TASK_STK_SIZE];
 static OS_STK CommandHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE];
 static OS_STK TaskRxFlagsStk[APP_CFG_TASK_START_STK_SIZE];
 
@@ -56,7 +56,7 @@ OS_EVENT * semPrint;
 INPUT_COMMAND commandPressed[1];
 uint16_t touch2LcdMessage[1];
 CONTROL stateAndControl[1];
-char songTitle[64];
+char songTitle[SONGLEN];
 float progressValue = 0;
 
 /************************************************************************************
@@ -142,7 +142,7 @@ void StartupTask(void* pdata)
     OSTaskCreate(StreamingTask, (void*)0, &StreamingTaskStk[APP_CFG_TASK_STK_SIZE-1], APP_TASK_STREAM_PRIO);
     OSTaskCreate(TouchPollingTask, (void*)0, &TouchPollingTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_TOUCH_PRIO);
     OSTaskCreate(CommandHandlerTask, (void*)0, &CommandHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_COMMAND_PRIO);
-    OSTaskCreate(LcdHandlerTask, (void*)0, &LcdHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_LCD_PRIO);
+    OSTaskCreate(LcdHandlerTask, (void*)0, &LcdHandlerTaskStk[APP_CFG_TASK_STK_SIZE-1], APP_TASK_LCD_PRIO);
     //Support tasks
     OSTaskCreate(TaskRxFlags, (void*)0, &TaskRxFlagsStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_RXFLAGS_PRIO);
 

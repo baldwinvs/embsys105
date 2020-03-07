@@ -154,7 +154,7 @@ void TouchPollingTask(void* pData)
                                 // send some special command
                                 touch2LcdMessage[0] += 1;
                                 if(OS_ERR_NONE != OSMboxPostOpt(touch2LcdHandler, touch2LcdMessage, OS_POST_OPT_NONE)) {
-                                    PrintFormattedString("TouchPollinTask: failed to post touch2LcdHandler (P1), aborting hold.\n");
+                                    PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler (P1), aborting hold.\n");
                                     break;
                                 }
                                 oneSecondElapsed = 1;
@@ -167,7 +167,7 @@ void TouchPollingTask(void* pData)
                                 // send some special command
                                 touch2LcdMessage[0] += 1;
                                 if(OS_ERR_NONE != OSMboxPostOpt(touch2LcdHandler, touch2LcdMessage, OS_POST_OPT_NONE)) {
-                                    PrintFormattedString("TouchPollinTask: failed to post touch2LcdHandler, aborting hold.\n");
+                                    PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler, aborting hold.\n");
                                     break;
                                 }
                                 OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
@@ -179,15 +179,13 @@ void TouchPollingTask(void* pData)
                         }
                         break;
                     case IC_RESTART:
-                        if(0 == oneSecondElapsed) {
-                            if(OSTimeGet() - startTime < OS_TICKS_PER_SEC) {
-                                OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
-                            }
-                            else {
-                                // send the alternate command
-                                commandPressed[0] = IC_RWD;
-                                oneSecondElapsed = 1;
-                            }
+                        if(OSTimeGet() - startTime < OS_TICKS_PER_SEC) {
+                            OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
+                        }
+                        else {
+                            // send the alternate command
+                            commandPressed[0] = IC_RWD;
+                            oneSecondElapsed = 1;
                         }
                         break;
                     case IC_RWD:
@@ -198,15 +196,13 @@ void TouchPollingTask(void* pData)
                         OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
                         break;
                     case IC_SKIP:
-                        if(0 == oneSecondElapsed) {
-                            if(OSTimeGet() - startTime < OS_TICKS_PER_SEC) {
-                                OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
-                            }
-                            else {
-                                // send the alternate command
-                                commandPressed[0] = IC_FF;
-                                oneSecondElapsed = 1;
-                            }
+                        if(OSTimeGet() - startTime < OS_TICKS_PER_SEC) {
+                            OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
+                        }
+                        else {
+                            // send the alternate command
+                            commandPressed[0] = IC_FF;
+                            oneSecondElapsed = 1;
                         }
                         break;
                     case IC_FF:
@@ -225,13 +221,14 @@ void TouchPollingTask(void* pData)
                 // clear message count
                 touch2LcdMessage[0] = (uint16_t)(PLAY_HOLD_MAX_MSG << 8);
                 if(OS_ERR_NONE != OSMboxPostOpt(touch2LcdHandler, touch2LcdMessage, OS_POST_OPT_NONE)) {
-                    PrintFormattedString("TouchPollinTask: failed to post touch2LcdHandler.\n");
+                    PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler.\n");
                 }
 
                 if(oneSecondElapsed && (IC_STOP != commandPressed[0] && IC_FF != commandPressed[0] && IC_RWD != commandPressed[0])) {
                     continue;
                 }
 
+                // complete by sending a play command
                 if(IC_FF == commandPressed[0] || IC_RWD == commandPressed[0]) {
                     commandPressed[0] = IC_PLAY;
                 }

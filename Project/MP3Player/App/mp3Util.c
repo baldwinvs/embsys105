@@ -15,7 +15,7 @@
 
 extern OS_EVENT * stream2LcdHandler;
 extern OS_EVENT * progressMessage;
-extern char songTitle[64];
+extern char songTitle[SONGLEN];
 extern float progressValue;
 
 extern TRACK* head;
@@ -24,13 +24,10 @@ extern CONTROL state;
 extern CONTROL control;
 extern INT8U volume[4];
 
-extern const uint8_t VOLUME_UP = 1;
-extern const uint8_t VOLUME_DOWN = 0;
-
 static File dataFile;
 
-extern void checkCommandQueue();
-extern void volumeControl(HANDLE, INT8U);
+extern void checkCommandMailbox();
+extern void volumeControl(HANDLE, const BOOLEAN);
 
 uint32_t checkRestartTrack(const uint32_t start)
 {
@@ -115,13 +112,13 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
 
     while (bytesAvailable && OS_FALSE == exit)
     {
-        checkCommandQueue();
+        checkCommandMailbox();
 
         switch(state) {
         case PC_STOP:
             exit = 1;
             current = head;
-            memcpy(songTitle, current->trackName, 64);
+            memcpy(songTitle, current->trackName, SONGLEN);
             break;
         case PC_PLAY:
             exit = writeNextSample(hMp3);
@@ -157,22 +154,22 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
             switch(control) {
             case PC_SKIP:
                 current = current->next;
-                memcpy(songTitle, current->trackName, 64);
+                memcpy(songTitle, current->trackName, SONGLEN);
                 exit = OS_TRUE;
                 break;
             case PC_RESTART:
                 if(1 == checkRestartTrack(startTime)) {
                     current = current->prev;
-                    memcpy(songTitle, current->trackName, 64);
+                    memcpy(songTitle, current->trackName, SONGLEN);
                 }
                 exit = OS_TRUE;
                 break;
             case PC_VOLUP:
-                volumeControl(hMp3, VOLUME_UP);
+                volumeControl(hMp3, OS_TRUE);
                 control = PC_NONE;
                 break;
             case PC_VOLDOWN:
-                volumeControl(hMp3, VOLUME_DOWN);
+                volumeControl(hMp3, OS_FALSE);
                 control = PC_NONE;
                 break;
             default:

@@ -228,6 +228,7 @@
                     <state>STM32F401xx</state>
                     <state>DEBUG</state>
                     <state>BUFSIZE=256</state>
+                    <state>SONGLEN=32</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>

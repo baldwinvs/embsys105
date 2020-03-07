@@ -3,7 +3,7 @@
 
 typedef struct track_info
 {
-    char trackName[64];
+    char trackName[SONGLEN];
     char fileName[13];
     struct track_info* prev;
     struct track_info* next;
