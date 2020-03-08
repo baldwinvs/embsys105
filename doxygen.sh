@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 CURR=$PWD
 FILE_PATHS=($CURR/Project)
