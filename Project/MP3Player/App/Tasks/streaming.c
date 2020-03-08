@@ -42,39 +42,52 @@ void StreamingTask(void* pData)
 
     OSTimeDly(OS_TICKS_PER_SEC * 2); // Allow other task to initialize LCD before we use it.
 
-	PrintFormattedString("StreamingTask: starting\n");
-
 	PrintFormattedString("Opening MP3 driver: %s\n", PJDF_DEVICE_ID_MP3_VS1053);
     // Open handle to the MP3 decoder driver
     HANDLE hMp3 = Open(PJDF_DEVICE_ID_MP3_VS1053, 0);
-    if (!PJDF_IS_VALID_HANDLE(hMp3)) while(1);
+    if (!PJDF_IS_VALID_HANDLE(hMp3)) {
+        PrintFormattedString("Failure opening MP3 driver: %s\n", PJDF_DEVICE_ID_MP3_VS1053);
+        while(1);
+    }
 
-	PrintFormattedString("Opening MP3 SPI driver: %s\n", MP3_SPI_DEVICE_ID);
     // We talk to the MP3 decoder over a SPI interface therefore
     // open an instance of that SPI driver and pass the handle to
     // the MP3 driver.
     HANDLE hSPI = Open(MP3_SPI_DEVICE_ID, 0);
-    if (!PJDF_IS_VALID_HANDLE(hSPI)) while(1);
+    if (!PJDF_IS_VALID_HANDLE(hSPI)) {
+        PrintFormattedString("Failure opening MP3 SPI driver: %s\n", MP3_SPI_DEVICE_ID);
+        while(1);
+    }
 
     length = sizeof(HANDLE);
     pjdfErr = Ioctl(hMp3, PJDF_CTRL_MP3_SET_SPI_HANDLE, &hSPI, &length);
-    if(PJDF_IS_ERROR(pjdfErr)) while(1);
+    if(PJDF_IS_ERROR(pjdfErr)) {
+        PrintFormattedString("Failure setting MP3 SPI handle\n");
+        while(1);
+    }
 
     // Initialize SD card
-    PrintFormattedString("Opening handle to SD driver: %s\n", PJDF_DEVICE_ID_SD_ADAFRUIT);
     HANDLE hSD = Open(PJDF_DEVICE_ID_SD_ADAFRUIT, 0);
-    if (!PJDF_IS_VALID_HANDLE(hSD)) while(1);
+    if (!PJDF_IS_VALID_HANDLE(hSD)) {
+        PrintFormattedString("Failure opening SD driver: %s\n", PJDF_DEVICE_ID_SD_ADAFRUIT);
+        while(1);
+    }
 
-    PrintFormattedString("Opening SD SPI driver: %s\n", SD_SPI_DEVICE_ID);
     // We talk to the SD controller over a SPI interface therefore
     // open an instance of that SPI driver and pass the handle to
     // the SD driver.
     hSPI = Open(SD_SPI_DEVICE_ID, 0);
-    if (!PJDF_IS_VALID_HANDLE(hSPI)) while(1);
+    if (!PJDF_IS_VALID_HANDLE(hSPI)) {
+        PrintFormattedString("Failure opening SD SPI driver: %s\n", SD_SPI_DEVICE_ID);
+        while(1);
+    }
 
     length = sizeof(HANDLE);
     pjdfErr = Ioctl(hSD, PJDF_CTRL_SD_SET_SPI_HANDLE, &hSPI, &length);
-    if(PJDF_IS_ERROR(pjdfErr)) while(1);
+    if(PJDF_IS_ERROR(pjdfErr)) {
+        PrintFormattedString("Failure setting SD SPI handle\n");
+        while(1);
+    }
 
     // initialize the volume
     memcpy(volume, BspMp3SetVol4040, 4);

@@ -12,24 +12,18 @@ extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox mess
 extern OS_EVENT * touch2CmdHandler;
 extern OS_EVENT * cmdHandler2Stream;
 extern OS_EVENT * cmdHandler2LcdHandler;
-extern CONTROL stateAndControl[1];
+extern CONTROL stateAndControl;
 
 extern TRACK* head;
 extern TRACK* current;
 
 void CommandHandlerTask(void* pData)
 {
-#if DEBUG
-    PrintFormattedString("CommandHandlerTask: starting\n");
-#endif
-
     {
         INT8U err;
         OSFlagPost(rxFlags, 4, OS_FLAG_SET, &err);
         if(OS_ERR_NONE != err) {
-#if DEBUG
             PrintFormattedString("CommandHandlerTask: posting to flag group with error code %d\n", (INT32U)err);
-#endif
             while(1);
         }
     }
@@ -42,40 +36,10 @@ void CommandHandlerTask(void* pData)
     while(1) {
         msgReceived = (INPUT_COMMAND*)OSMboxPend(touch2CmdHandler, 0, &err);
         if(OS_ERR_NONE != err) {
-#if DEBUG
             PrintFormattedString("CommandHandlerTask: pending on mboxA with error code %d\n", (INT32U)err);
-#endif
             while(1);
         }
 
-        //START
-        //STATE == STOP: wait for PLAY command
-        //      INPUT CMD == PLAY:
-        //              begin playing the initial track (track001.mp3)
-        //STATE == PLAY: after the track is finished, play the next track
-        //      INPUT CMD == STOP:
-        //              stop playing the current track, reset to initial track (track001.mp3)
-        //      INPUT CMD == PAUSE:
-        //              make reading the sd file pend using a binary semaphore
-        //      INPUT CMD == RESTART:
-        //              restart the current track if greater than 2 seconds has elapsed
-        //              go to the previous track if less than 2 seconds has elapsed and begin playing
-        //                  *(use ring buffer of tracks)
-        //      INPUT CMD == SKIP:
-        //              go to the next track and begin playing
-        //                  *(use ring buffer of tracks)
-        //STATE == PAUSE: wait for PLAY, RESTART or SKIP command
-        //      INPUT CMD == STOP:
-        //              stop playing the current track, reset to initial track (track001.mp3)
-        //      INPUT CMD == PLAY
-        //              resume playing the current track
-        //      INPUT CMD == RESTART:
-        //              restart the current track if greater than 2 seconds has elapsed
-        //              go to the previous track if less than 2 seconds has elapsed and begin playing
-        //                  *(make ring buffer of tracks)
-        //      INPUT CMD == SKIP:
-        //              go to the next track and begin playing
-        //                  *(use ring buffer of tracks)
         switch(*msgReceived) {
         case IC_STOP:
             switch(state) {
@@ -183,19 +147,15 @@ void CommandHandlerTask(void* pData)
             continue;
         }
 
-        stateAndControl[0] = (CONTROL)(state | control);
-        uint8_t err = OSMboxPostOpt(cmdHandler2Stream, stateAndControl, OS_POST_OPT_NONE);
+        stateAndControl = (CONTROL)(state | control);
+        uint8_t err = OSMboxPostOpt(cmdHandler2Stream, &stateAndControl, OS_POST_OPT_NONE);
         if(OS_ERR_NONE != err) {
-#if DEBUG
             PrintFormattedString("CommandHandlerTask: failed to post cmdHandler2Stream with error %d\n", (INT32U)err);
-#endif
         }
 
-        err = OSMboxPostOpt(cmdHandler2LcdHandler, stateAndControl, OS_POST_OPT_NONE);
+        err = OSMboxPostOpt(cmdHandler2LcdHandler, &stateAndControl, OS_POST_OPT_NONE);
         if(OS_ERR_NONE != err) {
-#if DEBUG
             PrintFormattedString("CommandHandlerTask: failed to post cmdHandler2Stream with error %d\n", (INT32U)err);
-#endif
         }
 
         control = PC_NONE;

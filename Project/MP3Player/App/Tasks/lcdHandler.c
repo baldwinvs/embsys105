@@ -34,7 +34,7 @@ static const int16_t rewindingPos_X = (120 - 45 - 9);       // center x pos [120
 static uint8_t lastCount = 0;
 static BOOLEAN stopped = OS_FALSE;
 static char buf[SONGLEN];
-static const int16_t line1Pos_Y = 50;
+static const int16_t line1Pos_Y = 55;
 static const int16_t line2Pos_Y = line1Pos_Y + 18;  // line 1 + 18
 
 static uint8_t sliderSpacing = 16;
@@ -499,31 +499,27 @@ void LcdHandlerTask(void* pData)
 {
     PjdfErrCode pjdfErr;
     INT32U length;
-#if DEBUG
-    PrintFormattedString("LcdHandlerTask: starting\n");
 
-	PrintFormattedString("Opening LCD driver: %s\n", PJDF_DEVICE_ID_LCD_ILI9341);
-#endif
     // Open handle to the LCD driver
     HANDLE hLcd = Open(PJDF_DEVICE_ID_LCD_ILI9341, 0);
-    if (!PJDF_IS_VALID_HANDLE(hLcd)) while(1);
+    if (!PJDF_IS_VALID_HANDLE(hLcd)) {
+        PrintFormattedString("Failure opening LCD driver: %s\n", PJDF_DEVICE_ID_LCD_ILI9341);
+        while(1);
+    }
 
-#if DEBUG
-	PrintFormattedString("Opening LCD SPI driver: %s\n", LCD_SPI_DEVICE_ID);
-#endif
     // We talk to the LCD controller over a SPI interface therefore
     // open an instance of that SPI driver and pass the handle to
     // the LCD driver.
     HANDLE hSPI = Open(LCD_SPI_DEVICE_ID, 0);
-    if (!PJDF_IS_VALID_HANDLE(hSPI)) while(1);
+    if (!PJDF_IS_VALID_HANDLE(hSPI)) {
+        PrintFormattedString("Failure opening LCD SPI driver: %s\n", LCD_SPI_DEVICE_ID);
+        while(1);
+    }
 
     length = sizeof(HANDLE);
     pjdfErr = Ioctl(hLcd, PJDF_CTRL_LCD_SET_SPI_HANDLE, &hSPI, &length);
     if(PJDF_IS_ERROR(pjdfErr)) while(1);
 
-#if DEBUG
-	PrintFormattedString("Initializing LCD controller\n");
-#endif
     lcdCtrl.setPjdfHandle(hLcd);
     lcdCtrl.begin();
 
@@ -535,17 +531,13 @@ void LcdHandlerTask(void* pData)
         INT8U err;
         OSFlagPost(rxFlags, 8, OS_FLAG_SET, &err);
         if(OS_ERR_NONE != err) {
-#if DEBUG
             PrintFormattedString("LcdHandlerTask: posting to flag group with error code %d\n", (INT32U)err);
-#endif
             while(1);
         }
 
         OSFlagPend(rxFlags, 8, OS_FLAG_WAIT_CLR_ALL, 0, &err);
         if(OS_ERR_NONE != err) {
-#if DEBUG
             PrintFormattedString("LcdHandlerTask: pending on flag group (bit 0x8) with error code %d\n", (INT32U)err);
-#endif
             while(1);
         }
     }

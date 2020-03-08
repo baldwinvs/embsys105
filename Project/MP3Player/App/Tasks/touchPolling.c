@@ -15,8 +15,8 @@
 extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
 extern OS_EVENT * touch2CmdHandler;
 extern OS_EVENT * touch2LcdHandler;
-extern INPUT_COMMAND commandPressed[1];
-extern uint16_t touch2LcdMessage[1];
+extern INPUT_COMMAND commandPressed;
+extern uint16_t touch2LcdMessage;
 
 static const uint32_t PLAY_HOLD_TICKS = 2 * OS_TICKS_PER_SEC;
 static const uint32_t PLAY_HOLD_DIVISOR = 20;
@@ -38,7 +38,7 @@ uint8_t checkForPress(const TS_Point p, const INT8U index)
             const int32_t yDiff = p.y - btn.p1.p;
             const uint32_t dist = (uint32_t)sqrt((xDiff * xDiff) + (yDiff * yDiff));
             if(dist <= btn.p2.p) {
-                commandPressed[0] = (INPUT_COMMAND)index;
+                commandPressed = (INPUT_COMMAND)index;
                 return 1;
             }
         }
@@ -47,7 +47,7 @@ uint8_t checkForPress(const TS_Point p, const INT8U index)
         {
             if(p.x >= btn.p0.p && p.x <= (btn.p0.p + btn.p2.p)) {
                 if(p.y >= btn.p1.p && p.y <= (btn.p1.p + btn.h)) {
-                    commandPressed[0] = (INPUT_COMMAND)index;
+                    commandPressed = (INPUT_COMMAND)index;
                     return 1;
                 }
             }
@@ -66,18 +66,13 @@ Runs LCD/Touch demo code
 ************************************************************************************/
 void TouchPollingTask(void* pData)
 {
-	PrintFormattedString("TouchPollingTask: starting\n");
-
-    PrintFormattedString("Initializing FT6206 touchscreen controller\n");
     HANDLE hI2C1 = Open(PJDF_DEVICE_ID_I2C1, 0);
-    PrintFormattedString("I2C1 handle opened\n");
     if(!PJDF_IS_VALID_HANDLE(hI2C1)) {
-        PrintFormattedString("##! I2C1 PJDF HANDLE IS INVALID!!\nABORTING!\n\n");
+        PrintFormattedString("Failure opening I2C driver: %s\n", PJDF_DEVICE_ID_I2C1);
         while(1);
     }
 
     touchCtrl.setPjdfHandle(hI2C1);
-    PrintFormattedString("I2C handle set in touchCtrl\n");
     if (! touchCtrl.begin(40)) {  // pass in 'sensitivity' coefficient
         PrintFormattedString("Couldn't start FT6206 touchscreen controller\n");
         while (1);
@@ -101,7 +96,7 @@ void TouchPollingTask(void* pData)
     const uint32_t delayTicks = OS_TICKS_PER_SEC / 12;
     TS_Point rawPoint;
     TS_Point p;
-    touch2LcdMessage[0] = {(uint16_t)(PLAY_HOLD_MAX_MSG << 8)};
+    touch2LcdMessage = {(uint16_t)(PLAY_HOLD_MAX_MSG << 8)};
 
     while (1) {
         boolean touched = false;
@@ -143,7 +138,7 @@ void TouchPollingTask(void* pData)
                 uint8_t oneSecondElapsed = 0;
                 uint32_t startTime = OSTimeGet();
                 while(touchCtrl.touched()) {
-                    switch(commandPressed[0]) {
+                    switch(commandPressed) {
                     case IC_PLAY:
                         //TODO: abstract this into function call
                         if(0 == oneSecondElapsed) {
@@ -152,8 +147,8 @@ void TouchPollingTask(void* pData)
                             }
                             else {
                                 // send some special command
-                                touch2LcdMessage[0] += 1;
-                                if(OS_ERR_NONE != OSMboxPostOpt(touch2LcdHandler, touch2LcdMessage, OS_POST_OPT_NONE)) {
+                                touch2LcdMessage += 1;
+                                if(OS_ERR_NONE != OSMboxPostOpt(touch2LcdHandler, &touch2LcdMessage, OS_POST_OPT_NONE)) {
                                     PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler (P1), aborting hold.\n");
                                     break;
                                 }
@@ -165,8 +160,8 @@ void TouchPollingTask(void* pData)
                         else {
                             if(OSTimeGet() - startTime < PLAY_HOLD_TICKS) {
                                 // send some special command
-                                touch2LcdMessage[0] += 1;
-                                if(OS_ERR_NONE != OSMboxPostOpt(touch2LcdHandler, touch2LcdMessage, OS_POST_OPT_NONE)) {
+                                touch2LcdMessage += 1;
+                                if(OS_ERR_NONE != OSMboxPostOpt(touch2LcdHandler, &touch2LcdMessage, OS_POST_OPT_NONE)) {
                                     PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler, aborting hold.\n");
                                     break;
                                 }
@@ -174,7 +169,7 @@ void TouchPollingTask(void* pData)
                             }
                             else {
                                 // set STOP command
-                                commandPressed[0] = IC_STOP;
+                                commandPressed = IC_STOP;
                             }
                         }
                         break;
@@ -184,12 +179,12 @@ void TouchPollingTask(void* pData)
                         }
                         else {
                             // send the alternate command
-                            commandPressed[0] = IC_RWD;
+                            commandPressed = IC_RWD;
                             oneSecondElapsed = 1;
                         }
                         break;
                     case IC_RWD:
-                        if(OS_ERR_NONE != OSMboxPostOpt(touch2CmdHandler, commandPressed, OS_POST_OPT_NONE)) {
+                        if(OS_ERR_NONE != OSMboxPostOpt(touch2CmdHandler, &commandPressed, OS_POST_OPT_NONE)) {
                             PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler, aborting hold.\n");
                             break;
                         }
@@ -201,12 +196,12 @@ void TouchPollingTask(void* pData)
                         }
                         else {
                             // send the alternate command
-                            commandPressed[0] = IC_FF;
+                            commandPressed = IC_FF;
                             oneSecondElapsed = 1;
                         }
                         break;
                     case IC_FF:
-                        if(OS_ERR_NONE != OSMboxPostOpt(touch2CmdHandler, commandPressed, OS_POST_OPT_NONE)) {
+                        if(OS_ERR_NONE != OSMboxPostOpt(touch2CmdHandler, &commandPressed, OS_POST_OPT_NONE)) {
                             PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler, aborting hold.\n");
                             break;
                         }
@@ -219,21 +214,21 @@ void TouchPollingTask(void* pData)
                 }
 
                 // clear message count
-                touch2LcdMessage[0] = (uint16_t)(PLAY_HOLD_MAX_MSG << 8);
-                if(OS_ERR_NONE != OSMboxPostOpt(touch2LcdHandler, touch2LcdMessage, OS_POST_OPT_NONE)) {
+                touch2LcdMessage = (uint16_t)(PLAY_HOLD_MAX_MSG << 8);
+                if(OS_ERR_NONE != OSMboxPostOpt(touch2LcdHandler, &touch2LcdMessage, OS_POST_OPT_NONE)) {
                     PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler.\n");
                 }
 
-                if(oneSecondElapsed && (IC_STOP != commandPressed[0] && IC_FF != commandPressed[0] && IC_RWD != commandPressed[0])) {
+                if(oneSecondElapsed && (IC_STOP != commandPressed && IC_FF != commandPressed && IC_RWD != commandPressed)) {
                     continue;
                 }
 
                 // complete by sending a play command
-                if(IC_FF == commandPressed[0] || IC_RWD == commandPressed[0]) {
-                    commandPressed[0] = IC_PLAY;
+                if(IC_FF == commandPressed || IC_RWD == commandPressed) {
+                    commandPressed = IC_PLAY;
                 }
 
-                uint8_t err = OSMboxPostOpt(touch2CmdHandler, commandPressed, OS_POST_OPT_NONE);
+                uint8_t err = OSMboxPostOpt(touch2CmdHandler, &commandPressed, OS_POST_OPT_NONE);
                 if(OS_ERR_NONE != err) {
                     PrintFormattedString("TouchPollingTask: failed to post touch2CmdHandler with error %d\n", (INT32U)err);
                 }
