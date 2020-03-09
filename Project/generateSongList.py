@@ -27,7 +27,8 @@ def _writeLine(fd, trackName, fileName):
 
 def generateSongList():
     i = 0
-    fd = open(os.getcwd() + '\\songs.txt', "w")
+    # Create the text file in the output directory.
+    fd = open(output_directory + '\\songs.txt', "w")
     if not os.path.exists(output_directory):
         os.mkdir(output_directory)
     for filename in os.listdir(music_directory):
