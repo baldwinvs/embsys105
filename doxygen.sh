@@ -1,12 +1,11 @@
 #!/bin/bash
 
-CURR=$PWD
-FILE_PATHS=($CURR/Project)
+FILE_PATHS=($PWD/Project)
 
-
+# Loop through the array and generate the Doxygen for each element.
 for i in "${FILE_PATHS[@]}"
 do
-    # Check if the doc and doc/generated directories exist
+    # Check if the <path>/doc and <path>/doc/generated directories exist
     if [ -d $i/doc ]; then :
     else mkdir $i/doc
     fi
@@ -15,9 +14,8 @@ do
     else mkdir $i/doc/generated
     fi
 
-    cd $i
-    echo "Doxygenating in $i"
-    doxygen.exe > /dev/null 2>&1
+    pushd $i > /dev/null
+    echo "Doxygenating in: $i"
+    doxygen.exe > /dev/null
+    popd > /dev/null
 done
-
-cd $CURR
