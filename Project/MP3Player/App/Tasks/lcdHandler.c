@@ -86,8 +86,17 @@ typedef struct point
 //! Touch screen corners: lower left, lower right, top left, top right.
 static const POINT corner[] = {{0, 320}, {235, 320}, {0, 0}, {235, 0}};
 
+/** @brief Renders a character at the current cursor position on the LCD.
+ *
+ * @param c The character to be displayed.
+ */
+static void PrintCharToLcd(char c)
+{
+    lcdCtrl.write(c);
+}
+
 /** @brief Print a formatted string with the given buffer to the LCD.
- * 
+ *
  * @param buf The buffer to write to.
  * @param size The number of bytes to write.
  * @param format The printf style formatting of the string.
@@ -100,19 +109,10 @@ void PrintToLcdWithBuf(char *buf, int size, char *format, ...)
     va_end(args);
 }
 
-/** @brief Renders a character at the current cursor position on the LCD.
- * 
- * @param c The character to be displayed.
- */
-static void PrintCharToLcd(char c)
-{
-    lcdCtrl.write(c);
-}
-
 /** @brief Draw a filled button.
- * 
+ *
  * \note The radius parameter is only used by square buttons.
- * 
+ *
  * @param btn The BTN struct defining the button.
  * @param color The color of the fill of the button.
  * @param radius The radius of the rounded portions of a rounded rectangle.
@@ -124,13 +124,13 @@ static void drawButton(const BTN btn, const uint16_t color, const uint16_t radiu
 static void drawLcdContents(void);
 
 /** Draw the pause icon.
- * 
+ *
  * @param color The color of the filled icon.
  */
 static void drawPause(const uint16_t color);
 
 /** @brief Draw the play icon.
- * 
+ *
  * @param color The color of the filled icon.
  */
 static void drawPlay(const uint16_t color);
@@ -148,38 +148,38 @@ static void incrementVolumeSlider(void);
 static void decrementVolumeSlider(void);
 
 /** @brief Update the volume slider based on the boolean input.
- * 
+ *
  * @param volumeUp **OS_TRUE** results in an increase in volume.
  */
 static void updateVolumeSlider(const BOOLEAN volumeUp);
 
 /** @brief Helper function for updating the state of the GUI.
- * 
+ *
  * @param prev The previous state.
  * @param curr The current state.
  */
 static void updateStateHelper(const CONTROL prev, const CONTROL curr);
 
 /** @brief Update the state of the GUI when given a command message.
- * 
+ *
  * @param commandMsg The command message containing the updated state and current command.
  */
 static void updateState(const CONTROL commandMsg);
 
 /** @brief Update the progress bar based on progress value that is input.
- * 
+ *
  * @param progress The progress value with range [0.0, 100.0]
  */
 static void updateProgressBar(const float progress);
 
 /** @brief Remove the previous track name and draw the new track name.
- * 
+ *
  * @param newTrack The new track string.
  */
 static void updateTrackName(const char* newTrack);
 
 /** @brief Draw the lines for the stop progress indicator.
- * 
+ *
  * @param stopProgress The stop progress value; range [0, 40]
  */
 static void drawStopProgressLines(const uint16_t stopProgress);
@@ -690,9 +690,14 @@ static void drawStopProgressLines(const uint16_t stopProgress)
     if(count % (max + 1) != 0) {
         const uint8_t adjustedCount = 4 * count;
         // For each corner, draw 4 lines based on the value of the adjustedCount.
-        for(uint8_t i = 0; i < 4; ++i) {
+        for(uint8_t i = 0; i < 2; ++i) {
             for(int8_t j = 3; j >= 0; --j) {
                 lcdCtrl.drawFastHLine(corner[i].x, corner[i].y - (adjustedCount - j), 5, BURNT_ORANGE);
+            }
+        }
+        for(uint8_t i = 0; i < 2; ++i) {
+            for(int8_t j = 3; j >= 0; --j) {
+                lcdCtrl.drawFastHLine(corner[i + 2].x, corner[i + 2].y + (adjustedCount - j), 5, BURNT_ORANGE);
             }
         }
         lastCount = count;
@@ -707,26 +712,41 @@ static void eraseStopProgressLines(void)
 {
     static BOOLEAN flipFlop = OS_FALSE;
 
-    // Draw over lines only if the user has stopped transmitting a stop progress.
     if(OS_TRUE == stopped) {
         const uint8_t adjustedCount = 4 * lastCount;
-        // Draw over the previously drawn lines.
-        for(uint8_t i = 0; i < 4; ++i) {
-            //Split erasing the lines to keep the flow of music data steady
-            if(OS_FALSE == flipFlop) {
-                lcdCtrl.drawFastHLine(corner[i].x, corner[i].y - (adjustedCount),     5, ILI9341_BLACK);
-                lcdCtrl.drawFastHLine(corner[i].x, corner[i].y - (adjustedCount - 1), 5, ILI9341_BLACK);
-                flipFlop = OS_TRUE;
-            }
-            else {
-                lcdCtrl.drawFastHLine(corner[i].x, corner[i].y - (adjustedCount - 2), 5, ILI9341_BLACK);
-                lcdCtrl.drawFastHLine(corner[i].x, corner[i].y - (adjustedCount - 3), 5, ILI9341_BLACK);
-                --lastCount;
-                flipFlop = OS_FALSE;
-            }
+        //Split erasing the lines to keep the flow of music data steady
+        if(OS_FALSE == flipFlop) {
+            //Erase the lower left progress bar
+            lcdCtrl.drawFastHLine(0, 320 - (adjustedCount),     5, ILI9341_BLACK);
+            lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 1), 5, ILI9341_BLACK);
+            //Erase the lower right progress bar
+            lcdCtrl.drawFastHLine(235, 320 - (adjustedCount),     5, ILI9341_BLACK);
+            lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 1), 5, ILI9341_BLACK);
+            //Erase the upper left progress bar
+            lcdCtrl.drawFastHLine(0, 0 + (adjustedCount),     5, ILI9341_BLACK);
+            lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 1), 5, ILI9341_BLACK);
+            //Erase the upper right progress bar
+            lcdCtrl.drawFastHLine(235, 0 + (adjustedCount),     5, ILI9341_BLACK);
+            lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 1), 5, ILI9341_BLACK);
+            flipFlop = OS_TRUE;
+        }
+        else {
+            //Erase the lower left progress bar
+            lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 2), 5, ILI9341_BLACK);
+            lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 3), 5, ILI9341_BLACK);
+            //Erase the lower right progress bar
+            lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 2), 5, ILI9341_BLACK);
+            lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 3), 5, ILI9341_BLACK);
+            //Erase the upper left progress bar
+            lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 2), 5, ILI9341_BLACK);
+            lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 3), 5, ILI9341_BLACK);
+            //Erase the upper right progress bar
+            lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 2), 5, ILI9341_BLACK);
+            lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 3), 5, ILI9341_BLACK);
+            --lastCount;
+            flipFlop = OS_FALSE;
         }
 
-        // Reset stopped to false so that it stops drawing lines.
         if(0 == lastCount) stopped = OS_FALSE;
     }
 }

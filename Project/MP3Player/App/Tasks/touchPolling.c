@@ -34,9 +34,9 @@ static long MapTouchToScreen(long x, long in_min, long in_max, long out_min, lon
 }
 
 /** Cycle through the buttons defined in btn_array.
- * 
+ *
  * @note Does not have an implementation for triangle buttons currently.
- * 
+ *
  * @param p The input touch screen point.
  * @param index The btn_array index to check for a press.
  *
@@ -56,7 +56,7 @@ static BOOLEAN checkForPress(const TS_Point p, const uint8_t index)
                 return OS_TRUE;
             }
         }
-        return 0;
+        return OS_FALSE;
     case S_SQUARE:
         {
             if(p.x >= btn.p0.p && p.x <= (btn.p0.p + btn.p2.p)) {
@@ -66,7 +66,7 @@ static BOOLEAN checkForPress(const TS_Point p, const uint8_t index)
                 }
             }
         }
-        return 0;
+        return OS_FALSE;
     case S_TRIANGLE:
     default:
         return OS_FALSE;
