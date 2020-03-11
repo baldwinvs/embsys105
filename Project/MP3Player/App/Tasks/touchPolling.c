@@ -12,14 +12,18 @@
 #include <math.h>
 
 //Globals
-extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
+extern OS_FLAG_GRP *initFlags;
 extern OS_EVENT * touch2CmdHandler;
 extern OS_EVENT * touch2LcdHandler;
 extern INPUT_COMMAND commandPressed;
 extern uint16_t touch2LcdMessage;
+extern const uint32_t touchPollingEventBit = 0x2;
 
+//! The number of ticks to activate the STOP command.
 static const uint32_t PLAY_HOLD_TICKS = 2 * OS_TICKS_PER_SEC;
+//! Divisor of OS_TICKS_PER_SEC to get a .05 second delay.
 static const uint32_t PLAY_HOLD_DIVISOR = 20;
+//! The maximum number of messages to send to LcdHandlerTask.
 static const uint32_t PLAY_HOLD_MAX_MSG = (PLAY_HOLD_TICKS / OS_TICKS_PER_SEC) * PLAY_HOLD_DIVISOR;
 
 Adafruit_FT6206 touchCtrl = Adafruit_FT6206(); // The touch controller
@@ -28,7 +32,17 @@ static long MapTouchToScreen(long x, long in_min, long in_max, long out_min, lon
 {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
-uint8_t checkForPress(const TS_Point p, const INT8U index)
+
+/** Cycle through the buttons defined in btn_array.
+ * 
+ * @note Does not have an implementation for triangle buttons currently.
+ * 
+ * @param p The input touch screen point.
+ * @param index The btn_array index to check for a press.
+ *
+ * @returns OS_TRUE if a button was pressed, OS_FALSE otherwise.
+ */
+static BOOLEAN checkForPress(const TS_Point p, const uint8_t index)
 {
     const BTN btn = btn_array[index];
     switch(btn.shape) {
@@ -39,7 +53,7 @@ uint8_t checkForPress(const TS_Point p, const INT8U index)
             const uint32_t dist = (uint32_t)sqrt((xDiff * xDiff) + (yDiff * yDiff));
             if(dist <= btn.p2.p) {
                 commandPressed = (INPUT_COMMAND)index;
-                return 1;
+                return OS_TRUE;
             }
         }
         return 0;
@@ -48,22 +62,17 @@ uint8_t checkForPress(const TS_Point p, const INT8U index)
             if(p.x >= btn.p0.p && p.x <= (btn.p0.p + btn.p2.p)) {
                 if(p.y >= btn.p1.p && p.y <= (btn.p1.p + btn.h)) {
                     commandPressed = (INPUT_COMMAND)index;
-                    return 1;
+                    return OS_TRUE;
                 }
             }
         }
         return 0;
     case S_TRIANGLE:
     default:
-        return 0;
+        return OS_FALSE;
     }
 }
 
-/************************************************************************************
-
-Runs LCD/Touch demo code
-
-************************************************************************************/
 void TouchPollingTask(void* pData)
 {
     HANDLE hI2C1 = Open(PJDF_DEVICE_ID_I2C1, 0);
@@ -78,37 +87,37 @@ void TouchPollingTask(void* pData)
         while (1);
     }
     else {
-        INT8U err;
+        uint8_t err;
         //initialized
-        OSFlagPost(rxFlags, 2, OS_FLAG_SET, &err);
+        OSFlagPost(initFlags, touchPollingEventBit, OS_FLAG_SET, &err);
         if(OS_ERR_NONE != err) {
-            PrintFormattedString("TouchPollingTask: posting to flag group with error code %d\n", (INT32U)err);
+            PrintFormattedString("TouchPollingTask: posting to flag group with error code %d\n", (uint32_t)err);
         }
 
         //wait for other tasks for finish initialization
-        OSFlagPend(rxFlags, 2, OS_FLAG_WAIT_CLR_ALL, 0, &err);
+        OSFlagPend(initFlags, touchPollingEventBit, OS_FLAG_WAIT_CLR_ALL, 0, &err);
         if(OS_ERR_NONE != err) {
-            PrintFormattedString("TouchPollingTask: pending on 0x2 value for flag event with error code %d\n", (INT32U)err);
+            PrintFormattedString("TouchPollingTask: pending on 0x2 value for flag event with error code %d\n", (uint32_t)err);
         }
     }
 
-    uint32_t output = 1;
+    BOOLEAN output = OS_TRUE;
     const uint32_t delayTicks = OS_TICKS_PER_SEC / 12;
     TS_Point rawPoint;
     TS_Point p;
-    touch2LcdMessage = {(uint16_t)(PLAY_HOLD_MAX_MSG << 8)};
+    touch2LcdMessage = (uint16_t)(PLAY_HOLD_MAX_MSG << 8);
 
-    while (1) {
-        boolean touched = false;
+    while (OS_TRUE) {
+        BOOLEAN touched = OS_FALSE;
 
         if(touchCtrl.touched()) {
-            touched = true;
+            touched = OS_TRUE;
         }
         else {
-            output = 1;
+            output = OS_TRUE;
         }
 
-        if(!touched) {
+        if(OS_FALSE == touched) {
             OSTimeDly(delayTicks);
             continue;
         }
@@ -124,24 +133,24 @@ void TouchPollingTask(void* pData)
         p.x = MapTouchToScreen(rawPoint.x, 0, ILI9341_TFTWIDTH, ILI9341_TFTWIDTH, 0);
         p.y = MapTouchToScreen(rawPoint.y, 0, ILI9341_TFTHEIGHT, ILI9341_TFTHEIGHT, 0);
 
-        if(1 == touched && 1 == output) {
-            output = 0;
+        if(OS_TRUE == touched && OS_TRUE == output) {
+            output = OS_FALSE;
 
-            uint8_t hit = 0;
+            BOOLEAN hit = OS_FALSE;
             uint8_t index;
             for(index = 0; index < btn_array_sz; ++index) {
                 hit = checkForPress(p, index);
-                if(1 == hit) break;
+                if(OS_TRUE == hit) break;
             }
 
-            if(1 == hit) {
-                uint8_t oneSecondElapsed = 0;
+            if(OS_TRUE == hit) {
+                BOOLEAN oneSecondElapsed = OS_FALSE;
                 uint32_t startTime = OSTimeGet();
                 while(touchCtrl.touched()) {
                     switch(commandPressed) {
                     case IC_PLAY:
                         //TODO: abstract this into function call
-                        if(0 == oneSecondElapsed) {
+                        if(OS_FALSE == oneSecondElapsed) {
                             if(OSTimeGet() - startTime < OS_TICKS_PER_SEC) {
                                 OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
                             }
@@ -152,7 +161,7 @@ void TouchPollingTask(void* pData)
                                     PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler (P1), aborting hold.\n");
                                     break;
                                 }
-                                oneSecondElapsed = 1;
+                                oneSecondElapsed = OS_TRUE;
                                 startTime = OSTimeGet();
                                 OSTimeDly(OS_TICKS_PER_SEC / PLAY_HOLD_DIVISOR);
                             }
@@ -180,7 +189,7 @@ void TouchPollingTask(void* pData)
                         else {
                             // send the alternate command
                             commandPressed = IC_RWD;
-                            oneSecondElapsed = 1;
+                            oneSecondElapsed = OS_TRUE;
                         }
                         break;
                     case IC_RWD:
@@ -197,7 +206,7 @@ void TouchPollingTask(void* pData)
                         else {
                             // send the alternate command
                             commandPressed = IC_FF;
-                            oneSecondElapsed = 1;
+                            oneSecondElapsed = OS_TRUE;
                         }
                         break;
                     case IC_FF:
@@ -219,7 +228,7 @@ void TouchPollingTask(void* pData)
                     PrintFormattedString("TouchPollingTask: failed to post touch2LcdHandler.\n");
                 }
 
-                if(oneSecondElapsed && (IC_STOP != commandPressed && IC_FF != commandPressed && IC_RWD != commandPressed)) {
+                if(OS_TRUE == oneSecondElapsed && (IC_STOP != commandPressed && IC_FF != commandPressed && IC_RWD != commandPressed)) {
                     continue;
                 }
 

@@ -7,61 +7,293 @@
 #include "InputCommands.h"
 #include "PlayerControl.h"
 
-//Globals
-extern OS_FLAG_GRP *rxFlags;       // Event flags for synchronizing mailbox messages
-extern OS_EVENT * touch2LcdHandler;
-extern OS_EVENT * cmdHandler2LcdHandler;
-extern OS_EVENT * stream2LcdHandler;
-extern OS_EVENT * progressMessage;
-
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ILI9341.h>
-
-Adafruit_ILI9341 lcdCtrl = Adafruit_ILI9341(); // The LCD controller
 
 #define BURNT_ORANGE        (0xCAA0)    /* 255, 165,   0 */
 #define DARK_BURNT_ORANGE   (0x7980)    /* 122,  85,   0 */
 
+//Globals
+extern OS_FLAG_GRP *initFlags;
+extern OS_EVENT * touch2LcdHandler;
+extern OS_EVENT * cmdHandler2LcdHandler;
+extern OS_EVENT * stream2LcdHandler;
+extern OS_EVENT * progressMessage;
+extern const uint32_t lcdHandlerEventBit = 0x8;
+
+Adafruit_ILI9341 lcdCtrl = Adafruit_ILI9341(); // The LCD controller
+
+//! The Y position of the state string on the touch screen.
 static const int16_t statePos_Y = 146;
-static const int16_t initializingPos_X = (120 - 60 - 12);    // center x pos [120] - (5 * char count) - char count
-static const int16_t initializedPos_X = (120 - 55 - 11);     // center x pos [120] - (5 * char count)
-static const int16_t playingPos_X = (120 - 35 - 7);         // center x pos [120] - (5 * char count)
-static const int16_t stoppedPos_X = (120 - 35 - 7);         // center x pos [120] - (5 * char count)
-static const int16_t pausedPos_X  = (120 - 30 - 6);         // center x pos [120] - (5 * char count)
-static const int16_t fastForwardingPos_X = (120 - 75 - 15);  // center x pos [120] - (5 * char count)
-static const int16_t rewindingPos_X = (120 - 45 - 9);       // center x pos [120] - (5 * char count)
+//! The X position of the string "INITIALIZING" on the touch screen.
+//! Calculated as: 120 - 6 * strlen("INITIALIZATING")
+static const int16_t initializingPos_X = (120 - 60 - 12);
+//! The X position of the string "INITIALIZED" on the touch screen.
+//! Calculated as: 120 - 6 * strlen("INITIALIZED")
+static const int16_t initializedPos_X = (120 - 55 - 11);
+//! The X position of the string "PLAYING" on the touch screen.
+//! Calculated as: 120 - 6 * strlen("PLAYING")
+static const int16_t playingPos_X = (120 - 35 - 7);
+//! The X position of the string "STOPPED" on the touch screen.
+//! Calculated as: 120 - 6 * strlen("STOPPED")
+static const int16_t stoppedPos_X = (120 - 35 - 7);
+//! The X position of the string "PAUSED" on the touch screen.
+//! Calculated as: 120 - 6 * strlen("PAUSED")
+static const int16_t pausedPos_X  = (120 - 30 - 6);
+//! The X position of the string "FAST FORWARDING" on the touch screen.
+//! Calculated as: 120 - 6 * strlen("FAST FORWARDING")
+static const int16_t fastForwardingPos_X = (120 - 75 - 15);
+//! The X position of the string "REWINDING" on the touch screen.
+//! Calculated as: 120 - 6 * strlen("REWINDING")
+static const int16_t rewindingPos_X = (120 - 45 - 9);
 
+//! The last received count value for the stop progress; range: [0, 40].
 static uint8_t lastCount = 0;
+//! Flag used for drawing the progress lines in reverse order.
+//! **OS_TRUE** if receiving stop progress value of 0, **OS_FALSE** otherwise.
 static BOOLEAN stopped = OS_FALSE;
+//! Character array for writing strings to the GUI.
 static char buf[SONGLEN];
+//! The Y position of the *first* line of the song title.
 static const int16_t line1Pos_Y = 55;
-static const int16_t line2Pos_Y = line1Pos_Y + 18;  // line 1 + 18
+//! The Y position of the *second* line of the song title.
+static const int16_t line2Pos_Y = line1Pos_Y + 18;
 
+//! The increments of the volume slider on the volume bar.
 static uint8_t sliderSpacing = 16;
+//! The maximum value of the left most pixel line of the volume slider.
 static const uint8_t maxSliderPosition = 196;
+//! Value for the currently displayed volume.
 static uint8_t volume = 4;  // range: [0-10], each value represents 10%
 
+//! Scale factor for the song's progress value.
 static const float progressScaleFactor = innerProgress_square.p2.p / 100.f;
+/** The previous progress value after scaling.
+ *
+ * Useful for:
+ * - Detecting if a song is progress forwards or in reverse
+ * - Knowing how many pixel lines to fill in (when given gaps)
+ */
 static uint8_t previousProgress = 0;
 
-// Renders a character at the current cursor position on the LCD
-static void PrintCharToLcd(char c)
+//! Struct defining an (x, y) coordinate for the touch screen.
+typedef struct point
 {
-    lcdCtrl.write(c);
-}
+    uint16_t x; //!< The x offset of the point.
+    uint16_t y; //!< The y offset of the point.
+} POINT;
 
-/************************************************************************************
+//! Touch screen corners: lower left, lower right, top left, top right.
+static const POINT corner[] = {{0, 320}, {235, 320}, {0, 0}, {235, 0}};
 
-Print a formated string with the given buffer to LCD.
-Each task should use its own buffer to prevent data corruption.
-
-************************************************************************************/
+/** @brief Print a formatted string with the given buffer to the LCD.
+ * 
+ * @param buf The buffer to write to.
+ * @param size The number of bytes to write.
+ * @param format The printf style formatting of the string.
+ */
 void PrintToLcdWithBuf(char *buf, int size, char *format, ...)
 {
     va_list args;
     va_start(args, format);
     PrintToDeviceWithBuf(PrintCharToLcd, buf, size, format, args);
     va_end(args);
+}
+
+/** @brief Renders a character at the current cursor position on the LCD.
+ * 
+ * @param c The character to be displayed.
+ */
+static void PrintCharToLcd(char c)
+{
+    lcdCtrl.write(c);
+}
+
+/** @brief Draw a filled button.
+ * 
+ * \note The radius parameter is only used by square buttons.
+ * 
+ * @param btn The BTN struct defining the button.
+ * @param color The color of the fill of the button.
+ * @param radius The radius of the rounded portions of a rounded rectangle.
+ */
+static void drawButton(const BTN btn, const uint16_t color, const uint16_t radius);
+
+/** @brief Draw the contents of the GUI.
+ */
+static void drawLcdContents(void);
+
+/** Draw the pause icon.
+ * 
+ * @param color The color of the filled icon.
+ */
+static void drawPause(const uint16_t color);
+
+/** @brief Draw the play icon.
+ * 
+ * @param color The color of the filled icon.
+ */
+static void drawPlay(const uint16_t color);
+
+/** @brief Handles drawing over the volume slider and filling in the volume bar where the
+ * slider was located; also increment (by subtracting 1, @see updateVolumeSlider()) volume slider
+ * before it is redrawn.
+ */
+static void incrementVolumeSlider(void);
+
+/** @brief Handles drawing over the volume slider and filling in the volume bar where the
+ * slider was located; also decrement (by adding 1, @see updateVolumeSlider()) volume slider
+ * before it is redrawn.
+ */
+static void decrementVolumeSlider(void);
+
+/** @brief Update the volume slider based on the boolean input.
+ * 
+ * @param volumeUp **OS_TRUE** results in an increase in volume.
+ */
+static void updateVolumeSlider(const BOOLEAN volumeUp);
+
+/** @brief Helper function for updating the state of the GUI.
+ * 
+ * @param prev The previous state.
+ * @param curr The current state.
+ */
+static void updateStateHelper(const CONTROL prev, const CONTROL curr);
+
+/** @brief Update the state of the GUI when given a command message.
+ * 
+ * @param commandMsg The command message containing the updated state and current command.
+ */
+static void updateState(const CONTROL commandMsg);
+
+/** @brief Update the progress bar based on progress value that is input.
+ * 
+ * @param progress The progress value with range [0.0, 100.0]
+ */
+static void updateProgressBar(const float progress);
+
+/** @brief Remove the previous track name and draw the new track name.
+ * 
+ * @param newTrack The new track string.
+ */
+static void updateTrackName(const char* newTrack);
+
+/** @brief Draw the lines for the stop progress indicator.
+ * 
+ * @param stopProgress The stop progress value; range [0, 40]
+ */
+static void drawStopProgressLines(const uint16_t stopProgress);
+
+/** @brief Draw over the previously drawn progress lines at the rate of 2 lines
+ * at each corner for each frame in which the user is not transmitting a stop
+ * progress value; this will give a smooth animation and the music will not be
+ * choppy.
+ */
+static void eraseStopProgressLines(void);
+
+void LcdHandlerTask(void* pData)
+{
+    PjdfErrCode pjdfErr;
+    uint32_t length;
+
+    // Open handle to the LCD driver
+    HANDLE hLcd = Open(PJDF_DEVICE_ID_LCD_ILI9341, 0);
+    if (!PJDF_IS_VALID_HANDLE(hLcd)) {
+        PrintFormattedString("Failure opening LCD driver: %s\n", PJDF_DEVICE_ID_LCD_ILI9341);
+        while(1);
+    }
+
+    // We talk to the LCD controller over a SPI interface therefore
+    // open an instance of that SPI driver and pass the handle to
+    // the LCD driver.
+    HANDLE hSPI = Open(LCD_SPI_DEVICE_ID, 0);
+    if (!PJDF_IS_VALID_HANDLE(hSPI)) {
+        PrintFormattedString("Failure opening LCD SPI driver: %s\n", LCD_SPI_DEVICE_ID);
+        while(1);
+    }
+
+    length = sizeof(HANDLE);
+    pjdfErr = Ioctl(hLcd, PJDF_CTRL_LCD_SET_SPI_HANDLE, &hSPI, &length);
+    if(PJDF_IS_ERROR(pjdfErr)) while(1);
+
+    lcdCtrl.setPjdfHandle(hLcd);
+    lcdCtrl.begin();
+
+    lcdCtrl.setRotation(0);
+
+    // Initialize the GUI.
+    drawLcdContents();
+
+    // Initialization complete, set the event bit and wait for other tasks to complete before proceeding.
+    {
+        INT8U err;
+        OSFlagPost(initFlags, lcdHandlerEventBit, OS_FLAG_SET, &err);
+        if(OS_ERR_NONE != err) {
+            PrintFormattedString("LcdHandlerTask: posting to flag group with error code %d\n", (uint32_t)err);
+            while(1);
+        }
+
+        OSFlagPend(initFlags, lcdHandlerEventBit, OS_FLAG_WAIT_CLR_ALL, 0, &err);
+        if(OS_ERR_NONE != err) {
+            PrintFormattedString("LcdHandlerTask: pending on flag group (bit 0x8) with error code %d\n", (uint32_t)err);
+            while(1);
+        }
+    }
+
+    // Now initialized, draw over the previous state string.
+    lcdCtrl.setTextColor(ILI9341_BLACK);
+    lcdCtrl.setCursor(initializingPos_X, statePos_Y);
+    PrintToLcdWithBuf(buf, 16, "INITIALIZING");
+
+    // Update state to INITIALIZED.
+    lcdCtrl.setTextColor(BURNT_ORANGE);
+    lcdCtrl.setCursor(initializedPos_X, statePos_Y);
+    PrintToLcdWithBuf(buf, 16, "INITIALIZED");
+
+    // Not necessary, but it's a nice feeling to have a short delay to see that it
+    // has actually initialized.
+    OSTimeDly(OS_TICKS_PER_SEC);
+
+    // Draw over the previous state string.
+    lcdCtrl.setTextColor(ILI9341_BLACK);
+    lcdCtrl.setCursor(initializedPos_X, statePos_Y);
+    PrintToLcdWithBuf(buf, 16, "INITIALIZED");
+
+    // Finally, draw the initial state.
+    lcdCtrl.setTextColor(BURNT_ORANGE);
+    lcdCtrl.setCursor(stoppedPos_X, statePos_Y);
+    PrintToLcdWithBuf(buf, 16, "STOPPED");
+
+    uint32_t* msgReceived = NULL;
+    const float* songProgress = NULL;
+    const char* trackName = NULL;
+
+    while(OS_TRUE) {
+        msgReceived = (uint32_t*)OSMboxAccept(touch2LcdHandler);
+        if(NULL != msgReceived) {
+            drawStopProgressLines(*(uint16_t*)msgReceived);
+        }
+
+        msgReceived = (uint32_t*)OSMboxAccept(cmdHandler2LcdHandler);
+        if(NULL != msgReceived) {
+            updateState(*(CONTROL *)msgReceived);
+        }
+
+        songProgress = (const float*)OSMboxAccept(progressMessage);
+        if(NULL != songProgress) {
+            updateProgressBar(*songProgress);
+        }
+
+        trackName = (const char*)OSMboxAccept(stream2LcdHandler);
+        if(NULL != trackName) {
+            updateTrackName(trackName);
+        }
+
+        eraseStopProgressLines();
+
+        // 10 ticks is a bit arbitrary, it works well at this value.
+        OSTimeDly(10);
+    }
 }
 
 static void drawButton(const BTN btn, const uint16_t color, const uint16_t radius)
@@ -81,7 +313,7 @@ static void drawButton(const BTN btn, const uint16_t color, const uint16_t radiu
     }
 }
 
-static void DrawLcdContents()
+static void drawLcdContents(void)
 {
     const char* volume_up = "+";
     const char* volume_down = "-";
@@ -138,6 +370,7 @@ static void drawPause(const uint16_t color)
     drawButton(pause_left_square, color, 1);
     drawButton(pause_right_square, color, 1);
 }
+
 static void drawPlay(const uint16_t color)
 {
     drawButton(play_triangle, color, 0);
@@ -145,11 +378,14 @@ static void drawPlay(const uint16_t color)
 
 static void incrementVolumeSlider(void)
 {
+    // Don't increment if at 100% volume.
     if(0 == volume) return;
 
-    //fill in the previous slider position
+    // Fill in the previous slider position to give the sense of it disappearing.
     drawButton(vol_slider, ILI9341_BLACK, 2);
     if(10 == volume) {
+        // Get the small section of the volume bar that was drawn over and redraw as original color
+        // to the sense that it was always there.
         const BTN vol_bar_segment = {S_SQUARE, vol_slider.p0.p, vol_bar.p1.p, vol_slider.p2.p, vol_bar.h};
         drawButton(vol_bar_segment, ILI9341_CYAN, 2);
         for(size_t i = vol_bar.p1.p; i < vol_bar.p1.p + vol_bar.h; ++i) {
@@ -157,7 +393,7 @@ static void incrementVolumeSlider(void)
         }
     }
     else if(volume > 0) {
-        //redraw the volume bar that was drawn over
+        // Redraw the volume bar that was drawn over.
         for(size_t i = vol_bar.p1.p; i < vol_bar.p1.p + vol_bar.h; ++i) {
             lcdCtrl.drawFastHLine(vol_slider.p0.p, i, vol_slider.p2.p, ILI9341_CYAN);
         }
@@ -167,11 +403,14 @@ static void incrementVolumeSlider(void)
 
 static void decrementVolumeSlider(void)
 {
+    // Don't decrement if at 0% volume.
     if(10 == volume) return;
 
-    //fill in the previous slider position
+    // Fill in the previous slider position to give the sense of it disappearing.
     drawButton(vol_slider, ILI9341_BLACK, 2);
     if(0 == volume) {
+        // Get the small section of the volume bar that was drawn over and redraw as original color
+        // to the sense that it was always there.
         const BTN vol_bar_segment = {S_SQUARE, vol_slider.p0.p, vol_bar.p1.p, vol_slider.p2.p, vol_bar.h};
         drawButton(vol_bar_segment, ILI9341_CYAN, 2);
         for(size_t i = vol_bar.p1.p; i < vol_bar.p1.p + vol_bar.h; ++i) {
@@ -179,7 +418,7 @@ static void decrementVolumeSlider(void)
         }
     }
     else if(volume < 10) {
-        //redraw the volume bar that was drawn over
+        // Redraw the volume bar that was drawn over.
         for(size_t i = vol_bar.p1.p; i < vol_bar.p1.p + vol_bar.h; ++i) {
             lcdCtrl.drawFastHLine(vol_slider.p0.p, i, vol_slider.p2.p, ILI9341_CYAN);
         }
@@ -187,7 +426,7 @@ static void decrementVolumeSlider(void)
     ++volume;
 }
 
-static void updateVolumeSlider(BOOLEAN volumeUp)
+static void updateVolumeSlider(const BOOLEAN volumeUp)
 {
     if(OS_TRUE == volumeUp) {
         incrementVolumeSlider();
@@ -195,6 +434,7 @@ static void updateVolumeSlider(BOOLEAN volumeUp)
     else {
         decrementVolumeSlider();
     }
+    // Calculate the new slider position and redraw.
     vol_slider.p0.p = maxSliderPosition - (sliderSpacing * volume);
     drawButton(vol_slider, BURNT_ORANGE, 2);
 }
@@ -210,6 +450,7 @@ static void updateStateHelper(const CONTROL prev, const CONTROL curr)
 
         lcdCtrl.setTextColor(ILI9341_BLACK);
 
+        // Determine the previous state's X offset and string.
         switch(prev) {
         case PC_STOP:
             prevPosition_X = stoppedPos_X;
@@ -237,11 +478,13 @@ static void updateStateHelper(const CONTROL prev, const CONTROL curr)
             break;
         }
 
+        // Determine the current state's X offset and string.
         switch(curr) {
         case PC_STOP:
             memcpy(stateString, "STOPPED", 16);
             currPosition_X = stoppedPos_X;
             if(OS_FALSE == paused) {
+                // Show the play icon.
                 drawPause(ILI9341_CYAN);
                 drawPlay(BURNT_ORANGE);
             }
@@ -250,6 +493,7 @@ static void updateStateHelper(const CONTROL prev, const CONTROL curr)
             memcpy(stateString, "PLAYING", 16);
             currPosition_X = playingPos_X;
             if(OS_TRUE == redraw) {
+                // Show the play icon.
                 drawPlay(ILI9341_CYAN);
                 drawPause(BURNT_ORANGE);
                 paused = OS_FALSE;
@@ -259,6 +503,7 @@ static void updateStateHelper(const CONTROL prev, const CONTROL curr)
             memcpy(stateString, "PAUSED", 16);
             currPosition_X = pausedPos_X;
             if(OS_TRUE == redraw) {
+                // Show the pause icon.
                 drawPause(ILI9341_CYAN);
                 drawPlay(BURNT_ORANGE);
                 paused = OS_TRUE;
@@ -275,9 +520,11 @@ static void updateStateHelper(const CONTROL prev, const CONTROL curr)
         default:
             break;
         }
+        // Draw over the previous state.
         lcdCtrl.setCursor(prevPosition_X, statePos_Y);
         PrintToLcdWithBuf(buf, 16, "%s", prevStateString);
 
+        // Then draw the current state.
         lcdCtrl.setTextColor(BURNT_ORANGE);
         lcdCtrl.setCursor(currPosition_X, statePos_Y);
         PrintToLcdWithBuf(buf, 16, "%s", stateString);
@@ -286,9 +533,11 @@ static void updateStateHelper(const CONTROL prev, const CONTROL curr)
 static void updateState(const CONTROL commandMsg)
 {
     static CONTROL prevState = PC_STOP;
+    // Extract the state and control values.
     const CONTROL state = (CONTROL)(commandMsg & stateMask);
     const CONTROL control = (CONTROL)(commandMsg & controlMask);
 
+    // Update the GUI if the state has changed.
     switch(state) {
     case PC_STOP:
     case PC_PLAY:
@@ -303,6 +552,9 @@ static void updateState(const CONTROL commandMsg)
     }
     prevState = state;
 
+    // Update the GUI if the volume has changed.
+    // Changes to the song via skip/restart are reflected when StreamingTask
+    //   sends the updated track information.
     switch(control) {
     case PC_VOLUP:
         updateVolumeSlider(OS_TRUE);
@@ -320,25 +572,32 @@ static void updateState(const CONTROL commandMsg)
 
 static void updateProgressBar(const float progress)
 {
+    // The progress value is in the range of [0.0, 100.0].
+    // The scaledProgress is in the range of [innerProgress_square.po.p, innerProgress_square.p2.p]
+    //   therefore the progress value must be scaled to accomodate this.
     const uint8_t scaledProgress = (uint8_t)(progress * progressScaleFactor);
 
-    //play, ff
+    // Occurs in states: PLAY, FAST FORWARDING.
     if(scaledProgress > previousProgress) {
+        // Draw vertical lines for range [previousProgress, scaledProgress)
         do {
             lcdCtrl.drawFastVLine(innerProgress_square.p0.p + previousProgress, innerProgress_square.p1.p,
                                   innerProgress_square.h, BURNT_ORANGE);
         }
         while(++previousProgress < scaledProgress);
+        // Then draw the line at scaledProgress.
         lcdCtrl.drawFastVLine(innerProgress_square.p0.p + scaledProgress, innerProgress_square.p1.p,
                               innerProgress_square.h, BURNT_ORANGE);
     }
-    //rwd
+    // Occurs in state: REWINDING.
     else if (scaledProgress < previousProgress) {
+        // Draw over all progress lines currently drawn to reset progress.
         if(scaledProgress == 0) {
             drawButton(innerProgress_square, ILI9341_BLACK, 0);
             previousProgress = scaledProgress;
         }
         else {
+            // Draw vertical lines for range (scaledProgress, previousProgress].
             do {
                 lcdCtrl.drawFastVLine(innerProgress_square.p0.p + previousProgress, innerProgress_square.p1.p,
                                       innerProgress_square.h, ILI9341_BLACK);
@@ -358,6 +617,9 @@ static void updateTrackName(const char* newTrack)
     static uint8_t prevPos_X1 = 0;
     static uint8_t prevPos_X2 = 0;
 
+    const uint8_t length = (uint8_t)strlen(newTrack);
+
+    // Draw over the previous track name.
     lcdCtrl.setTextColor(ILI9341_BLACK);
     if(OS_TRUE == use2Lines) {
         const size_t s1Len = strlen(prevTrackName_1);
@@ -377,7 +639,7 @@ static void updateTrackName(const char* newTrack)
         PrintToLcdWithBuf(buf, SONGLEN, prevTrack);
     }
 
-    const uint8_t length = (uint8_t)strlen(newTrack);
+    // Determine if the track name will fit on 1 line or 2 lines.
     if(length > maxCharsPerLine) {
         // look for a space, starting at the end
         uint8_t i;
@@ -396,6 +658,7 @@ static void updateTrackName(const char* newTrack)
     }
     else use2Lines = OS_FALSE;
 
+    // Draw the new track name.
     lcdCtrl.setTextColor(BURNT_ORANGE);
     if(OS_TRUE == use2Lines) {
         const size_t s1Len = strlen(prevTrackName_1);
@@ -417,178 +680,53 @@ static void updateTrackName(const char* newTrack)
     }
 }
 
-void drawStopProgressLines(const uint16_t stopProgress)
+static void drawStopProgressLines(const uint16_t stopProgress)
 {
     // 0xYYZZ, YY is max count, ZZ is current count
     const uint8_t max = (uint8_t)((stopProgress >> 8) & 0x00FF);
     const uint8_t count = (uint8_t)(stopProgress & 0x00FF);
 
+    // When count is in range [1, 40].
     if(count % (max + 1) != 0) {
         const uint8_t adjustedCount = 4 * count;
-        //Draw the lower left progress bar
-        lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 3), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 2), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 1), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(0, 320 - (adjustedCount),     5, BURNT_ORANGE);
-        //Draw the lower right progress bar
-        lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 3), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 2), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 1), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(235, 320 - (adjustedCount),     5, BURNT_ORANGE);
-        //Draw the upper left progress bar
-        lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 3), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 2), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 1), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(0, 0 + (adjustedCount),     5, BURNT_ORANGE);
-        //Draw the upper right progress bar
-        lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 3), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 2), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 1), 5, BURNT_ORANGE);
-        lcdCtrl.drawFastHLine(235, 0 + (adjustedCount),     5, BURNT_ORANGE);
+        // For each corner, draw 4 lines based on the value of the adjustedCount.
+        for(uint8_t i = 0; i < 4; ++i) {
+            for(int8_t j = 3; j >= 0; --j) {
+                lcdCtrl.drawFastHLine(corner[i].x, corner[i].y - (adjustedCount - j), 5, BURNT_ORANGE);
+            }
+        }
         lastCount = count;
     }
+    // When count is zero, the user has released the button and sent the last message.
     else {
         stopped = OS_TRUE;
     }
 }
 
-void eraseStopProgressLines()
+static void eraseStopProgressLines(void)
 {
     static BOOLEAN flipFlop = OS_FALSE;
 
+    // Draw over lines only if the user has stopped transmitting a stop progress.
     if(OS_TRUE == stopped) {
         const uint8_t adjustedCount = 4 * lastCount;
-        //Split erasing the lines to keep the flow of music data steady
-        if(OS_FALSE == flipFlop) {
-            //Erase the lower left progress bar
-            lcdCtrl.drawFastHLine(0, 320 - (adjustedCount),     5, ILI9341_BLACK);
-            lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 1), 5, ILI9341_BLACK);
-            //Erase the lower right progress bar
-            lcdCtrl.drawFastHLine(235, 320 - (adjustedCount),     5, ILI9341_BLACK);
-            lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 1), 5, ILI9341_BLACK);
-            //Erase the upper left progress bar
-            lcdCtrl.drawFastHLine(0, 0 + (adjustedCount),     5, ILI9341_BLACK);
-            lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 1), 5, ILI9341_BLACK);
-            //Erase the upper right progress bar
-            lcdCtrl.drawFastHLine(235, 0 + (adjustedCount),     5, ILI9341_BLACK);
-            lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 1), 5, ILI9341_BLACK);
-            flipFlop = OS_TRUE;
-        }
-        else {
-            //Erase the lower left progress bar
-            lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 2), 5, ILI9341_BLACK);
-            lcdCtrl.drawFastHLine(0, 320 - (adjustedCount - 3), 5, ILI9341_BLACK);
-            //Erase the lower right progress bar
-            lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 2), 5, ILI9341_BLACK);
-            lcdCtrl.drawFastHLine(235, 320 - (adjustedCount - 3), 5, ILI9341_BLACK);
-            //Erase the upper left progress bar
-            lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 2), 5, ILI9341_BLACK);
-            lcdCtrl.drawFastHLine(0, 0 + (adjustedCount - 3), 5, ILI9341_BLACK);
-            //Erase the upper right progress bar
-            lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 2), 5, ILI9341_BLACK);
-            lcdCtrl.drawFastHLine(235, 0 + (adjustedCount - 3), 5, ILI9341_BLACK);
-            --lastCount;
-            flipFlop = OS_FALSE;
+        // Draw over the previously drawn lines.
+        for(uint8_t i = 0; i < 4; ++i) {
+            //Split erasing the lines to keep the flow of music data steady
+            if(OS_FALSE == flipFlop) {
+                lcdCtrl.drawFastHLine(corner[i].x, corner[i].y - (adjustedCount),     5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(corner[i].x, corner[i].y - (adjustedCount - 1), 5, ILI9341_BLACK);
+                flipFlop = OS_TRUE;
+            }
+            else {
+                lcdCtrl.drawFastHLine(corner[i].x, corner[i].y - (adjustedCount - 2), 5, ILI9341_BLACK);
+                lcdCtrl.drawFastHLine(corner[i].x, corner[i].y - (adjustedCount - 3), 5, ILI9341_BLACK);
+                --lastCount;
+                flipFlop = OS_FALSE;
+            }
         }
 
+        // Reset stopped to false so that it stops drawing lines.
         if(0 == lastCount) stopped = OS_FALSE;
-    }
-}
-
-void LcdHandlerTask(void* pData)
-{
-    PjdfErrCode pjdfErr;
-    INT32U length;
-
-    // Open handle to the LCD driver
-    HANDLE hLcd = Open(PJDF_DEVICE_ID_LCD_ILI9341, 0);
-    if (!PJDF_IS_VALID_HANDLE(hLcd)) {
-        PrintFormattedString("Failure opening LCD driver: %s\n", PJDF_DEVICE_ID_LCD_ILI9341);
-        while(1);
-    }
-
-    // We talk to the LCD controller over a SPI interface therefore
-    // open an instance of that SPI driver and pass the handle to
-    // the LCD driver.
-    HANDLE hSPI = Open(LCD_SPI_DEVICE_ID, 0);
-    if (!PJDF_IS_VALID_HANDLE(hSPI)) {
-        PrintFormattedString("Failure opening LCD SPI driver: %s\n", LCD_SPI_DEVICE_ID);
-        while(1);
-    }
-
-    length = sizeof(HANDLE);
-    pjdfErr = Ioctl(hLcd, PJDF_CTRL_LCD_SET_SPI_HANDLE, &hSPI, &length);
-    if(PJDF_IS_ERROR(pjdfErr)) while(1);
-
-    lcdCtrl.setPjdfHandle(hLcd);
-    lcdCtrl.begin();
-
-    lcdCtrl.setRotation(0);
-
-    DrawLcdContents();
-
-    {
-        INT8U err;
-        OSFlagPost(rxFlags, 8, OS_FLAG_SET, &err);
-        if(OS_ERR_NONE != err) {
-            PrintFormattedString("LcdHandlerTask: posting to flag group with error code %d\n", (INT32U)err);
-            while(1);
-        }
-
-        OSFlagPend(rxFlags, 8, OS_FLAG_WAIT_CLR_ALL, 0, &err);
-        if(OS_ERR_NONE != err) {
-            PrintFormattedString("LcdHandlerTask: pending on flag group (bit 0x8) with error code %d\n", (INT32U)err);
-            while(1);
-        }
-    }
-
-
-    lcdCtrl.setTextColor(ILI9341_BLACK);
-    lcdCtrl.setCursor(initializingPos_X, statePos_Y);
-    PrintToLcdWithBuf(buf, 16, "INITIALIZING");
-
-    lcdCtrl.setTextColor(BURNT_ORANGE);
-    lcdCtrl.setCursor(initializedPos_X, statePos_Y);
-    PrintToLcdWithBuf(buf, 16, "INITIALIZED");
-
-    OSTimeDly(OS_TICKS_PER_SEC);
-
-    lcdCtrl.setTextColor(ILI9341_BLACK);
-    lcdCtrl.setCursor(initializedPos_X, statePos_Y);
-    PrintToLcdWithBuf(buf, 16, "INITIALIZED");
-
-    lcdCtrl.setTextColor(BURNT_ORANGE);
-    lcdCtrl.setCursor(stoppedPos_X, statePos_Y);
-    PrintToLcdWithBuf(buf, 16, "STOPPED");
-
-    uint32_t* msgReceived = NULL;
-    const float* songProgress = NULL;
-    const char* trackName = NULL;
-
-    while(1) {
-        msgReceived = (uint32_t*)OSMboxAccept(touch2LcdHandler);
-        if(NULL != msgReceived) {
-            drawStopProgressLines(*(uint16_t*)msgReceived);
-        }
-
-        msgReceived = (uint32_t*)OSMboxAccept(cmdHandler2LcdHandler);
-        if(NULL != msgReceived) {
-            updateState(*(CONTROL *)msgReceived);
-        }
-
-        songProgress = (const float*)OSMboxAccept(progressMessage);
-        if(NULL != songProgress) {
-            updateProgressBar(*songProgress);
-        }
-
-        trackName = (const char*)OSMboxAccept(stream2LcdHandler);
-        if(NULL != trackName) {
-            updateTrackName(trackName);
-        }
-
-        //Update other things when stopping before erasing lines.
-        eraseStopProgressLines();
-
-        OSTimeDly(10);
     }
 }

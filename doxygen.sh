@@ -16,6 +16,7 @@ do
 
     pushd $i > /dev/null
     echo "Doxygenating in: $i"
-    doxygen.exe > /dev/null
+    # Ensure that the doxygen executable is linked as "doxygen" and not "doxygen.exe"
+    doxygen > /dev/null
     popd > /dev/null
 done

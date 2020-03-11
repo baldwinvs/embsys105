@@ -34,41 +34,44 @@ The maximum number of tasks the application can have is defined by OS_MAX_TASKS 
 
 ************************************************************************************/
 
+//! Stack for the TouchPollingTask.
 static OS_STK TouchPollingTaskStk[APP_CFG_TASK_START_STK_SIZE];
+//! Stack for the StreamingTask.
 static OS_STK StreamingTaskStk[APP_CFG_TASK_STK_SIZE];
+//! Stack for the LcdHandlerTask.
 static OS_STK LcdHandlerTaskStk[APP_CFG_TASK_STK_SIZE];
+//! Stack for the CommandHandlerTask.
 static OS_STK CommandHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE];
-static OS_STK TaskRxFlagsStk[APP_CFG_TASK_START_STK_SIZE];
+//! Stack for InitializationTask.
+static OS_STK InitializationTaskStk[APP_CFG_TASK_START_STK_SIZE];
 
-// Useful functions
-void PrintToLcdWithBuf(char *buf, int size, char *format, ...);
+OS_FLAG_GRP * initFlags;            //!< Event flags used by the tasks to synchronize initialization.
 
-// Globals
-OS_FLAG_GRP *rxFlags = 0;           // Event flags for synchronizing mailbox messages
-OS_EVENT * touch2CmdHandler;        // Message mailbox connecting touchPolling to commandHandler
-OS_EVENT * touch2LcdHandler;        // Message mailbox connecting touchPolling to lcdHandler
-OS_EVENT * cmdHandler2Stream;       // Message mailbox connecting commandHandler to streaming
-OS_EVENT * cmdHandler2LcdHandler;   // Message mailbox connecting commandHandler to lcdHandler
-OS_EVENT * stream2LcdHandler;       // Message mailbox connecting streaming to lcdHandler
-OS_EVENT * progressMessage;         // Message mailbox used for sending progress information from streaming to lcdHandler
-OS_EVENT * semPrint;
+const uint32_t streamingEventBit        = 0x1;  //!< Event bit for the StreamingTask.
+const uint32_t touchPollingEventBit     = 0x2;  //!< Event bit for the TouchPollingTask.
+const uint32_t commandHandlerEventBit   = 0x4;  //!< Event bit for the CommandHandlerTask.
+const uint32_t lcdHandlerEventBit       = 0x8;  //!< Event bit for the LcdHandlerTask.
+const uint32_t allEventBits             = 0xF;  //!< Event bit mask for all tasks together.
 
-INPUT_COMMAND commandPressed;
-uint16_t touch2LcdMessage;
-CONTROL stateAndControl;
-char songTitle[SONGLEN];
-float progressValue = 0;
+OS_EVENT * touch2CmdHandler;        //!< Message mailbox connecting TouchPollingTask to CommandHandlerTask.
+OS_EVENT * touch2LcdHandler;        //!< Message mailbox connecting TouchPollingTask to LcdHandlerTask.
+OS_EVENT * cmdHandler2Stream;       //!< Message mailbox connecting CommandHandlerTask to StreamingTask.
+OS_EVENT * cmdHandler2LcdHandler;   //!< Message mailbox connecting CommandHandlerTask to LcdHandlerTask.
+OS_EVENT * stream2LcdHandler;       //!< Message mailbox connecting StreamingTask to LcdHandlerTask.
+OS_EVENT * progressMessage;         //!< Message mailbox used for sending progress information from StreamingTask to LcdHandlerTask.
+OS_EVENT * semPrint;                //!< Binary semaphore allowing only a single task to print to the terminal at a time.
 
-/************************************************************************************
+INPUT_COMMAND commandPressed;   //!< Used to store the state and control bit-masked values for the touch2CmdHandler message mailbox.
+uint16_t touch2LcdMessage;      //!< Used to store the stop progress value and the max value for the touch2LcdHandler message mailbox.
+CONTROL stateAndControl;        //!< Used to store the state and control bit-masked values for the cmdHandler2Stream and cmdHandler2LcdHandler message mailboxes.
+char songTitle[SONGLEN];        //!< Used to store the song title string for the stream2LcdHandler message mailbox.
+float progressValue = 0;        //!< Used to store the song progress value for the progressMessage message mailbox.
 
-This task is the initial task running, started by main(). It starts
-the system tick timer and creates all the other tasks. Then it deletes itself.
-
-************************************************************************************/
 void StartupTask(void* pdata)
 {
-    uint8_t err = 0;
+    uint8_t err;
 
+    // Initialize all event pointers.
     touch2CmdHandler = OSMboxCreate(NULL);
     if(NULL == touch2CmdHandler) {
         PrintFormattedString("StartupTask: failed to create touch2CmdHandler\n");
@@ -99,11 +102,12 @@ void StartupTask(void* pdata)
         PrintFormattedString("StartupTask: failed to create progressMessage\n");
     }
 
-    rxFlags = OSFlagCreate((OS_FLAGS)0, &err);
+    initFlags = OSFlagCreate((OS_FLAGS)0, &err);
     if(err != OS_ERR_NONE) {
-        PrintFormattedString("StartupTask: failed to create rxFlags with error %d\n", (INT32U)err);
+        PrintFormattedString("StartupTask: failed to create initFlags with error %d\n", (uint32_t)err);
     }
 
+    // Initialize the binary semaphore as full.
     semPrint = OSSemCreate(1);
     if(NULL == semPrint) {
         PrintFormattedString("StartupTask: failed to create semPrint\n");
@@ -118,35 +122,27 @@ void StartupTask(void* pdata)
     OSTaskCreate(TouchPollingTask, (void*)0, &TouchPollingTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_TOUCH_PRIO);
     OSTaskCreate(CommandHandlerTask, (void*)0, &CommandHandlerTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_COMMAND_PRIO);
     OSTaskCreate(LcdHandlerTask, (void*)0, &LcdHandlerTaskStk[APP_CFG_TASK_STK_SIZE-1], APP_TASK_LCD_PRIO);
-    //Support tasks
-    OSTaskCreate(TaskRxFlags, (void*)0, &TaskRxFlagsStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_RXFLAGS_PRIO);
+    OSTaskCreate(InitializationTask, (void*)0, &InitializationTaskStk[APP_CFG_TASK_START_STK_SIZE-1], APP_TASK_INIT_PRIO);
 
     // Delete ourselves, letting the work be done in the new tasks.
 	OSTaskDel(OS_PRIO_SELF);
 }
 
-
-
-/************************************************************************************
-
-TaskRxFlags synchronizes TaskMBRxA and TaskMBRxB so they each must receive their current message
-before either can receive their next message.
-
-************************************************************************************/
-
-void TaskRxFlags(void* pData)
+void InitializationTask(void* pData)
 {
-	INT8U err;
+	uint8_t err;
 
-    OSFlagPend(rxFlags, 0xF, OS_FLAG_WAIT_SET_ALL, 0, &err);
+    // Wait for all tasks to be initialized. 
+    OSFlagPend(initFlags, allEventBits, OS_FLAG_WAIT_SET_ALL, 0, &err);
     if(OS_ERR_NONE != err) {
-        PrintFormattedString("TaskRxFlags: pending on 0xF for flag group rxFlags, err %d\n", err);
+        PrintFormattedString("InitializationTask: pending on 0xF for flag group initFlags, err %d\n", (uint32_t)err);
     }
 
-    OSFlagPost(rxFlags, 0xF, OS_FLAG_CLR, &err);
+    OSFlagPost(initFlags, allEventBits, OS_FLAG_CLR, &err);
     if(OS_ERR_NONE != err) {
-        PrintFormattedString("TaskRxFlags: posting 0x8 to flag group rxFlags, err %d\n", err);
+        PrintFormattedString("InitializationTask: posting 0x8 to flag group initFlags, err %d\n", (uint32_t)err);
     }
 
+    // Delete ourselves, no further work to be done.
 	OSTaskDel(OS_PRIO_SELF);
 }

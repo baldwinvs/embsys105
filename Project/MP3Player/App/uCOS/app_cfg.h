@@ -55,13 +55,13 @@
 */
 
 //task priorities
-#define APP_TASK_START_PRIO                 4
-#define APP_TASK_RXFLAGS_PRIO               5
-#define APP_TASK_TOUCH_PRIO                 6
-#define APP_TASK_COMMAND_PRIO               7
-#define APP_TASK_LCD_PRIO                   8
-#define APP_TASK_STREAM_PRIO                9
-#define  OS_TASK_TMR_PRIO                (OS_LOWEST_PRIO - 2u)
+#define APP_TASK_START_PRIO                     4
+#define APP_TASK_INIT_PRIO                      5
+#define APP_TASK_TOUCH_PRIO                     6
+#define APP_TASK_COMMAND_PRIO                   7
+#define APP_TASK_LCD_PRIO                       8
+#define APP_TASK_STREAM_PRIO                    9
+#define OS_TASK_TMR_PRIO                        (OS_LOWEST_PRIO - 2u)
 
 
 /*

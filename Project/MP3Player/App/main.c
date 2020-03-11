@@ -15,21 +15,29 @@ Revision History:
 
 ************************************************************************************/
 
-
 #include "bsp.h"
 #include "print.h"
 
-// Prototype for startup task
+/** @brief The initial task running, started by main(); it starts the system tick timer
+ * and creates all the other tasks and then it deletes itself.
+ * 
+ * @param pData Pointer to the input data for the task.
+ */
 void StartupTask(void* pdata);
 
-// Allocate a stack for the startup task
+//! Stack for StartupTask.
 static OS_STK StartupStk[APP_CFG_TASK_START_STK_SIZE];
 
 // Allocate the print buffer
 PRINT_DEFINEBUFFER();
 
-void delay(uint32_t count);
-/************************************************************************************
+// General purpose delay
+void delay(uint32_t count)
+{
+    while(count--);
+}
+
+/*###################################################################################
 
 Routine Description:
 
@@ -43,9 +51,9 @@ Return Value:
 
     none.
 
-************************************************************************************/
+###################################################################################*/
 void main() {
-INT8U err;
+    uint8_t err;
     Hw_init();
 
     delay(1000000);
@@ -73,7 +81,7 @@ INT8U err;
         APP_TASK_START_PRIO);
 
     if (err != OS_ERR_NONE) {
-        DEBUGMSG(1, ("main: failed creating start up task: %d\n", err));
+        DEBUGMSG(1, ("main: failed creating start up task: %d\n", (uint32_t)err));
         while(OS_TRUE);  //park on error
     }
 
@@ -85,10 +93,3 @@ INT8U err;
     // should never reach here
     while (1);
 }
-
-// General purpose delay
-void delay(uint32_t count)
-{
-    while(count--);
-}
-
