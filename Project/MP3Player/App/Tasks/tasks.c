@@ -21,7 +21,7 @@ Module Description:
 #include "print.h"
 #include "mp3Util.h"
 #include "InputCommands.h"
-#include "PlayerControl.h"
+#include "PlayerCommand.h"
 
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ILI9341.h>
@@ -47,11 +47,13 @@ static OS_STK InitializationTaskStk[APP_CFG_TASK_START_STK_SIZE];
 
 OS_FLAG_GRP * initFlags;            //!< Event flags used by the tasks to synchronize initialization.
 
-const uint32_t streamingEventBit        = 0x1;  //!< Event bit for the StreamingTask.
-const uint32_t touchPollingEventBit     = 0x2;  //!< Event bit for the TouchPollingTask.
-const uint32_t commandHandlerEventBit   = 0x4;  //!< Event bit for the CommandHandlerTask.
-const uint32_t lcdHandlerEventBit       = 0x8;  //!< Event bit for the LcdHandlerTask.
+/** @defgroup init_bits Initialization Event Bits
+ * Event bits used by individual tasks to synchronize initialization across tasks.
+ *
+ * @{
+ */
 const uint32_t allEventBits             = 0xF;  //!< Event bit mask for all tasks together.
+/** @} */
 
 OS_EVENT * touch2CmdHandler;        //!< Message mailbox connecting TouchPollingTask to CommandHandlerTask.
 OS_EVENT * touch2LcdHandler;        //!< Message mailbox connecting TouchPollingTask to LcdHandlerTask.
@@ -63,7 +65,7 @@ OS_EVENT * semPrint;                //!< Binary semaphore allowing only a single
 
 INPUT_COMMAND commandPressed;   //!< Used to store the state and control bit-masked values for the touch2CmdHandler message mailbox.
 uint16_t touch2LcdMessage;      //!< Used to store the stop progress value and the max value for the touch2LcdHandler message mailbox.
-CONTROL stateAndControl;        //!< Used to store the state and control bit-masked values for the cmdHandler2Stream and cmdHandler2LcdHandler message mailboxes.
+COMMAND stateAndControl;        //!< Used to store the state and control bit-masked values for the cmdHandler2Stream and cmdHandler2LcdHandler message mailboxes.
 char songTitle[SONGLEN];        //!< Used to store the song title string for the stream2LcdHandler message mailbox.
 float progressValue = 0;        //!< Used to store the song progress value for the progressMessage message mailbox.
 
@@ -132,7 +134,7 @@ void InitializationTask(void* pData)
 {
 	uint8_t err;
 
-    // Wait for all tasks to be initialized. 
+    // Wait for all tasks to be initialized.
     OSFlagPend(initFlags, allEventBits, OS_FLAG_WAIT_SET_ALL, 0, &err);
     if(OS_ERR_NONE != err) {
         PrintFormattedString("InitializationTask: pending on 0xF for flag group initFlags, err %d\n", (uint32_t)err);

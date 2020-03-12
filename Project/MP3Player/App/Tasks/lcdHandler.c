@@ -5,7 +5,7 @@
 
 #include "Buttons.h"
 #include "InputCommands.h"
-#include "PlayerControl.h"
+#include "PlayerCommand.h"
 
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ILI9341.h>
@@ -19,7 +19,12 @@ extern OS_EVENT * touch2LcdHandler;
 extern OS_EVENT * cmdHandler2LcdHandler;
 extern OS_EVENT * stream2LcdHandler;
 extern OS_EVENT * progressMessage;
-extern const uint32_t lcdHandlerEventBit = 0x8;
+
+/** @addtogroup init_bits
+ * @{
+ */
+const uint32_t lcdHandlerEventBit       = 0x8;  //!< Event bit for the LcdHandlerTask.
+/** @} */
 
 Adafruit_ILI9341 lcdCtrl = Adafruit_ILI9341(); // The LCD controller
 
@@ -158,13 +163,13 @@ static void updateVolumeSlider(const BOOLEAN volumeUp);
  * @param prev The previous state.
  * @param curr The current state.
  */
-static void updateStateHelper(const CONTROL prev, const CONTROL curr);
+static void updateStateHelper(const COMMAND prev, const COMMAND curr);
 
 /** @brief Update the state of the GUI when given a command message.
  *
  * @param commandMsg The command message containing the updated state and current command.
  */
-static void updateState(const CONTROL commandMsg);
+static void updateState(const COMMAND commandMsg);
 
 /** @brief Update the progress bar based on progress value that is input.
  *
@@ -276,7 +281,7 @@ void LcdHandlerTask(void* pData)
 
         msgReceived = (uint32_t*)OSMboxAccept(cmdHandler2LcdHandler);
         if(NULL != msgReceived) {
-            updateState(*(CONTROL *)msgReceived);
+            updateState(*(COMMAND *)msgReceived);
         }
 
         songProgress = (const float*)OSMboxAccept(progressMessage);
@@ -439,7 +444,7 @@ static void updateVolumeSlider(const BOOLEAN volumeUp)
     drawButton(vol_slider, BURNT_ORANGE, 2);
 }
 
-static void updateStateHelper(const CONTROL prev, const CONTROL curr)
+static void updateStateHelper(const COMMAND prev, const COMMAND curr)
 {
         static BOOLEAN paused = OS_FALSE;
         BOOLEAN redraw = OS_TRUE;
@@ -530,12 +535,12 @@ static void updateStateHelper(const CONTROL prev, const CONTROL curr)
         PrintToLcdWithBuf(buf, 16, "%s", stateString);
 }
 
-static void updateState(const CONTROL commandMsg)
+static void updateState(const COMMAND commandMsg)
 {
-    static CONTROL prevState = PC_STOP;
+    static COMMAND prevState = PC_STOP;
     // Extract the state and control values.
-    const CONTROL state = (CONTROL)(commandMsg & stateMask);
-    const CONTROL control = (CONTROL)(commandMsg & controlMask);
+    const COMMAND state = (COMMAND)(commandMsg & stateMask);
+    const COMMAND control = (COMMAND)(commandMsg & controlMask);
 
     // Update the GUI if the state has changed.
     switch(state) {

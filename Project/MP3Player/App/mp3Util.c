@@ -10,8 +10,8 @@
 #include "bsp.h"
 #include "print.h"
 #include "SD.h"
-#include "PlayerControl.h"
-#include "LinkedList.h"
+#include "PlayerCommand.h"
+#include "TrackInfo.h"
 
 extern OS_EVENT * stream2LcdHandler;
 extern OS_EVENT * progressMessage;
@@ -20,8 +20,8 @@ extern float progressValue;
 
 extern TRACK* head;
 extern TRACK* current;
-extern CONTROL state;
-extern CONTROL control;
+extern COMMAND state;
+extern COMMAND control;
 extern INT8U volume[4];
 
 static File dataFile;
@@ -29,16 +29,18 @@ static File dataFile;
 extern void checkCommandMailbox();
 extern void volumeControl(HANDLE, const BOOLEAN);
 
-uint32_t checkRestartTrack(const uint32_t start)
+// Check to see if the track is to be restarted; true if time diff greater than 2 seconds past the start time.
+// Otherwise (if diff < 2 sec) go to the previous song
+BOOLEAN checkRestartTrack(const uint32_t start)
 {
     const uint32_t restartTime = OSTimeGet();
     const uint32_t diff = (restartTime < start ? (UINT32_MAX - start + restartTime) //inexplicable rollover occurred
                            : (restartTime - start));
 
     if(diff <= (2 * OS_TICKS_PER_SEC)) {
-        return 1;
+        return OS_FALSE;
     }
-    return 0;
+    return OS_TRUE;
 }
 
 static BOOLEAN writeNextSample(HANDLE hMp3)
@@ -158,7 +160,7 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
                 exit = OS_TRUE;
                 break;
             case PC_RESTART:
-                if(1 == checkRestartTrack(startTime)) {
+                if(OS_FALSE == checkRestartTrack(startTime)) {
                     current = current->prev;
                     memcpy(songTitle, current->trackName, SONGLEN);
                 }

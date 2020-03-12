@@ -831,7 +831,7 @@ WARN_LOGFILE           =
 
 INPUT                  = ./ \
                          ./MP3Player/ \
-                         ./MP3Player/App/LinkedList.h \
+                         ./MP3Player/App/TrackInfo.h \
                          ./MP3Player/App/Tasks/ \
                          ./MP3Player/GUI/
 

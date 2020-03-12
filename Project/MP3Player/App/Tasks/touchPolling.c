@@ -17,7 +17,12 @@ extern OS_EVENT * touch2CmdHandler;
 extern OS_EVENT * touch2LcdHandler;
 extern INPUT_COMMAND commandPressed;
 extern uint16_t touch2LcdMessage;
-extern const uint32_t touchPollingEventBit = 0x2;
+
+/** @addtogroup init_bits
+ * @{
+ */
+const uint32_t touchPollingEventBit     = 0x2;  //!< Event bit for the TouchPollingTask.
+/** @} */
 
 //! The number of ticks to activate the STOP command.
 static const uint32_t PLAY_HOLD_TICKS = 2 * OS_TICKS_PER_SEC;

@@ -3,17 +3,22 @@
 #include "bsp.h"
 #include "print.h"
 
-#include "LinkedList.h"
+#include "TrackInfo.h"
 #include "InputCommands.h"
-#include "PlayerControl.h"
+#include "PlayerCommand.h"
 
 //Globals
 extern OS_FLAG_GRP *initFlags;
 extern OS_EVENT * touch2CmdHandler;
 extern OS_EVENT * cmdHandler2Stream;
 extern OS_EVENT * cmdHandler2LcdHandler;
-extern CONTROL stateAndControl;
-extern const uint32_t commandHandlerEventBit = 0x4;
+extern COMMAND stateAndControl;
+
+/** @addtogroup init_bits
+ * @{
+ */
+const uint32_t commandHandlerEventBit = 0x4;    //!< Event bit for the CommandHandlerTask.
+/** @} */
 
 extern TRACK* head;
 extern TRACK* current;
@@ -32,8 +37,8 @@ void CommandHandlerTask(void* pData)
 
     INPUT_COMMAND* msgReceived = NULL;
     uint8_t err;
-    CONTROL state = PC_STOP;
-    CONTROL control = PC_NONE;
+    COMMAND state = PC_STOP;
+    COMMAND control = PC_NONE;
 
     while(OS_TRUE) {
         // Wait forever for the input command to come from TouchPollingTask.
@@ -151,7 +156,7 @@ void CommandHandlerTask(void* pData)
         }
 
         // Package the state and control up for mailbox delivery.
-        stateAndControl = (CONTROL)(state | control);
+        stateAndControl = (COMMAND)(state | control);
 
         // Send mail to StreamingTask.
         uint8_t err = OSMboxPostOpt(cmdHandler2Stream, &stateAndControl, OS_POST_OPT_NONE);

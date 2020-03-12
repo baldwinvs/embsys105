@@ -2,7 +2,6 @@
 #define LINKEDLIST_H_
 
 //! Doubly linked list node containing the track name and the file name.
-//! \todo rename this file to trackInfo.h
 typedef struct track_info
 {
     char trackName[SONGLEN];    //!< The ***actual*** name of the track.

@@ -5,9 +5,9 @@
 #include "print.h"
 #include "SD.h"
 
-#include "LinkedList.h"
+#include "TrackInfo.h"
 #include "InputCommands.h"
-#include "PlayerControl.h"
+#include "PlayerCommand.h"
 
 #include <stdlib.h>
 
@@ -18,7 +18,12 @@ extern OS_EVENT * stream2LcdHandler;
 extern OS_EVENT * progressMessage;
 extern char songTitle[SONGLEN];
 extern float progressValue;
-extern const uint32_t streamingEventBit = 0x1;
+
+/** @addtogroup init_bits
+ * @{
+ */
+const uint32_t streamingEventBit        = 0x1;  //!< Event bit for the StreamingTask.
+/** @} */
 
 static uint32_t trackListSize = 0;
 
@@ -29,15 +34,15 @@ TRACK* head = NULL;
 TRACK* current = NULL;
 
 //! The current state for the streaming task.
-CONTROL state = PC_STOP;
+COMMAND state = PC_STOP;
 //! The control of the streaming task; used only for a single frame at a time.
-CONTROL control = PC_NONE;
+COMMAND control = PC_NONE;
 
 //! The volume array used for setting the volume in the VS1053b.
 uint8_t volume[4];
 
 /** @brief Initialize the file list from the SD card by parsing a song list that has mapped the file names to the actual song names.
- * 
+ *
  * @note Allocates/deallocates memory using malloc/free.
  * @note Could use uCOS memory partitions if the logic was done a bit differently
  * (to find the file count before creating the partition).
@@ -49,7 +54,7 @@ void initFileList();
 void checkCommandMailbox();
 
 /** @brief Increase/decrease the volume level in the VS1053b device.
- * 
+ *
  * | Value | Volume Level (%) |
  * |:-----:|:----------------:|
  * | 0x00  | 100              |
@@ -62,10 +67,10 @@ void checkCommandMailbox();
  * | 0x70  | 30               |
  * | 0x80  | 20               |
  * | 0xFE  | 0                |
- * 
+ *
  * @note 10% volume was omitted because it was barely noticeable and the GUI
  * worked out nicely with only 10 steps for the volume.
- * 
+ *
  * @param hMp3 The MP3 device handle.
  * @param volume_up **OS_TRUE** for turning the volume up, **OS_FALSE** otherwise.
  */
@@ -307,15 +312,15 @@ void initFileList()
 
 void checkCommandMailbox()
 {
-    const CONTROL * command = (CONTROL *)OSMboxAccept(cmdHandler2Stream);
+    const COMMAND * command = (COMMAND *)OSMboxAccept(cmdHandler2Stream);
 
     if(NULL == command) {
         return;
     }
 
     // Retrieve the state and control values if the command is valid.
-    state = (CONTROL)(*command & stateMask);
-    control = (CONTROL)(*command & controlMask);
+    state = (COMMAND)(*command & stateMask);
+    control = (COMMAND)(*command & controlMask);
 }
 
 void volumeControl(HANDLE hMp3, const BOOLEAN volume_up)

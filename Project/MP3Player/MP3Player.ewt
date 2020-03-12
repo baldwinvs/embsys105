@@ -2463,9 +2463,6 @@
             </file>
         </group>
         <file>
-            <name>$PROJ_DIR$\App\LinkedList.h</name>
-        </file>
-        <file>
             <name>$PROJ_DIR$\App\main.c</name>
         </file>
         <file>
@@ -2476,6 +2473,9 @@
         </file>
         <file>
             <name>$PROJ_DIR$\App\shell.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\App\TrackInfo.h</name>
         </file>
     </group>
     <group>
@@ -2525,21 +2525,6 @@
                 </file>
             </group>
         </group>
-    </group>
-    <group>
-        <name>Bitmaps</name>
-        <file>
-            <name>$PROJ_DIR$\Bitmaps\play.bmp</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\Bitmaps\play_bmp.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\Bitmaps\stop.bmp</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\Bitmaps\stop_bmp.h</name>
-        </file>
     </group>
     <group>
         <name>BSP</name>
@@ -2682,7 +2667,7 @@
             <name>$PROJ_DIR$\GUI\InputCommands.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\GUI\PlayerControl.h</name>
+            <name>$PROJ_DIR$\GUI\PlayerCommand.h</name>
         </file>
     </group>
     <group>
