@@ -67,7 +67,7 @@ static const uint8_t maxSliderPosition = 196;
 static uint8_t volume = 4;  // range: [0-10], each value represents 10%
 
 //! Scale factor for the song's progress value.
-static const float progressScaleFactor = innerProgress_square.p2.p / 100.f;
+static const float progressScaleFactor = progress_icon.p2.p / 100.f;
 /** The previous progress value after scaling.
  *
  * Useful for:
@@ -328,52 +328,52 @@ static void drawLcdContents(void)
     lcdCtrl.setTextSize(4);
 
     //don't draw volume down rectangle, do draw text
-    lcdCtrl.setCursor(vol_dwn.p0.p + vol_dwn.p2.p/4, vol_dwn.p1.p + 6);
+    lcdCtrl.setCursor(vol_down_btn.p0.p + vol_down_btn.p2.p/4, vol_down_btn.p1.p + 6);
     PrintToLcdWithBuf(buf, 12, (char*)volume_down);
 
     drawButton(vol_bar, ILI9341_CYAN, 2);
     drawButton(vol_slider, BURNT_ORANGE, 2);
 
     //don't draw volume up rectangle, do draw text
-    lcdCtrl.setCursor(vol_up.p0.p + vol_up.p2.p/4, vol_up.p1.p + 6);
+    lcdCtrl.setCursor(vol_up_btn.p0.p + vol_up_btn.p2.p/4, vol_up_btn.p1.p + 6);
     PrintToLcdWithBuf(buf, 12, (char*)volume_up);
 
-    drawButton(progress_square, ILI9341_CYAN, 4);
-    drawButton(innerProgress_square, ILI9341_BLACK, 0);
+    drawButton(outer_progress_icon, ILI9341_CYAN, 4);
+    drawButton(progress_icon, ILI9341_BLACK, 0);
 
-    drawButton(restart_square, BURNT_ORANGE, 5);
-    const BTN restart_square_inner = {S_SQUARE, restart_square.p0.p+2, restart_square.p1.p+2, restart_square.p2.p-4, restart_square.h-4};
-    drawButton(restart_square_inner, ILI9341_CYAN, 5);
-    drawButton(skip_square, BURNT_ORANGE, 5);
-    const BTN skip_square_inner = {S_SQUARE, skip_square.p0.p+2, skip_square.p1.p+2, skip_square.p2.p-4, skip_square.h-4};
-    drawButton(skip_square_inner, ILI9341_CYAN, 5);
+    drawButton(restart_btn, BURNT_ORANGE, 5);
+    const BTN restart_btn_inner = {S_SQUARE, restart_btn.p0.p+2, restart_btn.p1.p+2, restart_btn.p2.p-4, restart_btn.h-4};
+    drawButton(restart_btn_inner, ILI9341_CYAN, 5);
+    drawButton(skip_btn, BURNT_ORANGE, 5);
+    const BTN skip_btn_inner = {S_SQUARE, skip_btn.p0.p+2, skip_btn.p1.p+2, skip_btn.p2.p-4, skip_btn.h-4};
+    drawButton(skip_btn_inner, ILI9341_CYAN, 5);
 
-    drawButton(play_circle, BURNT_ORANGE, 0);
-    const BTN play_circle_inner = {S_CIRCLE, play_circle.p0.p, play_circle.p1.p, play_circle.p2.p-3, 0};
-    drawButton(play_circle_inner, ILI9341_CYAN, 0);
+    drawButton(play_btn, BURNT_ORANGE, 0);
+    const BTN play_btn_inner = {S_CIRCLE, play_btn.p0.p, play_btn.p1.p, play_btn.p2.p-3, 0};
+    drawButton(play_btn_inner, ILI9341_CYAN, 0);
 
-    drawButton(play_triangle, BURNT_ORANGE, 0);
+    drawButton(play_icon, BURNT_ORANGE, 0);
 
-    drawButton(restart_left_triangle, BURNT_ORANGE, 0);
-    drawButton(restart_right_triangle, BURNT_ORANGE, 0);
-    drawButton(restart_right_square, BURNT_ORANGE, 0);
+    drawButton(restart_left_icon, BURNT_ORANGE, 0);
+    drawButton(restart_right_icon, BURNT_ORANGE, 0);
+    drawButton(restart_end_icon, BURNT_ORANGE, 0);
 
-    drawButton(skip_left_triangle, BURNT_ORANGE, 0);
-    drawButton(skip_right_triangle, BURNT_ORANGE, 0);
-    drawButton(skip_right_square, BURNT_ORANGE, 0);
+    drawButton(skip_left_icon, BURNT_ORANGE, 0);
+    drawButton(skip_right_icon, BURNT_ORANGE, 0);
+    drawButton(skip_end_icon, BURNT_ORANGE, 0);
 
     lcdCtrl.setTextSize(2);
 }
 
 static void drawPause(const uint16_t color)
 {
-    drawButton(pause_left_square, color, 1);
-    drawButton(pause_right_square, color, 1);
+    drawButton(pause_left_icon, color, 1);
+    drawButton(pause_right_icon, color, 1);
 }
 
 static void drawPlay(const uint16_t color)
 {
-    drawButton(play_triangle, color, 0);
+    drawButton(play_icon, color, 0);
 }
 
 static void incrementVolumeSlider(void)
@@ -573,7 +573,7 @@ static void updateState(const CONTROL commandMsg)
 static void updateProgressBar(const float progress)
 {
     // The progress value is in the range of [0.0, 100.0].
-    // The scaledProgress is in the range of [innerProgress_square.po.p, innerProgress_square.p2.p]
+    // The scaledProgress is in the range of [progress_icon.po.p, progress_icon.p2.p]
     //   therefore the progress value must be scaled to accomodate this.
     const uint8_t scaledProgress = (uint8_t)(progress * progressScaleFactor);
 
@@ -581,26 +581,26 @@ static void updateProgressBar(const float progress)
     if(scaledProgress > previousProgress) {
         // Draw vertical lines for range [previousProgress, scaledProgress)
         do {
-            lcdCtrl.drawFastVLine(innerProgress_square.p0.p + previousProgress, innerProgress_square.p1.p,
-                                  innerProgress_square.h, BURNT_ORANGE);
+            lcdCtrl.drawFastVLine(progress_icon.p0.p + previousProgress, progress_icon.p1.p,
+                                  progress_icon.h, BURNT_ORANGE);
         }
         while(++previousProgress < scaledProgress);
         // Then draw the line at scaledProgress.
-        lcdCtrl.drawFastVLine(innerProgress_square.p0.p + scaledProgress, innerProgress_square.p1.p,
-                              innerProgress_square.h, BURNT_ORANGE);
+        lcdCtrl.drawFastVLine(progress_icon.p0.p + scaledProgress, progress_icon.p1.p,
+                              progress_icon.h, BURNT_ORANGE);
     }
     // Occurs in state: REWINDING.
     else if (scaledProgress < previousProgress) {
         // Draw over all progress lines currently drawn to reset progress.
         if(scaledProgress == 0) {
-            drawButton(innerProgress_square, ILI9341_BLACK, 0);
+            drawButton(progress_icon, ILI9341_BLACK, 0);
             previousProgress = scaledProgress;
         }
         else {
             // Draw vertical lines for range (scaledProgress, previousProgress].
             do {
-                lcdCtrl.drawFastVLine(innerProgress_square.p0.p + previousProgress, innerProgress_square.p1.p,
-                                      innerProgress_square.h, ILI9341_BLACK);
+                lcdCtrl.drawFastVLine(progress_icon.p0.p + previousProgress, progress_icon.p1.p,
+                                      progress_icon.h, ILI9341_BLACK);
             }
             while(--previousProgress > scaledProgress);
         }
