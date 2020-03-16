@@ -10,30 +10,30 @@
 [Task Overview](task_overview.md)
 
 ### Diagrams
-[High Level RelationShip](HighLevelRelationShip.pdf)
+[High Level Relationship](diagrams/HighLevelRelationship.pdf)
 ![](diagrams/HighLevelRelationship.png)
 
-[Task Communication](taskCommunication.pdf)
+[Task Communication](diagrams/taskCommunication.pdf)
 ![](diagrams/taskCommunication.png)
 
-[InitializationTask](Initialization.pdf)
+[InitializationTask](diagrams/Initialization.pdf)
 ![](diagrams/Initialization.png)
 
-[TouchPollingTask](touchPolling.pdf)
+[TouchPollingTask](diagrams/touchPolling.pdf)
 ![](diagrams/touchPolling.png)
 
-[CommandHandlerTask](commandHandler.pdf)
+[CommandHandlerTask](diagrams/commandHandler.pdf)
 ![](diagrams/commandHandler.png)
 
-[LcdHandlerTask](lcdHandler.pdf)
+[LcdHandlerTask](diagrams/lcdHandler.pdf)
 ![](diagrams/lcdHandler.png)
 
- - [Draw/Delete Stop Progress Lines](stopProgressLines.pdf)
- - [Update Progress Bar](updateProgressBar.pdf)
- - [Update State](updateState.pdf)
- - [Volume Control](volumeControl.pdf)
+ - [Draw/Delete Stop Progress Lines](diagrams/stopProgressLines.pdf)
+ - [Update Progress Bar](diagrams/updateProgressBar.pdf)
+ - [Update State](diagrams/updateState.pdf)
+ - [Volume Control](diagrams/volumeControl.pdf)
 
-[StreamingTask](streaming.pdf)
+[StreamingTask](diagrams/streaming.pdf)
 ![](diagrams/streaming.png)
 
- - [MP3StreamSDFile](Mp3StreamSDFile.pdf)
+ - [MP3StreamSDFile](diagrams/Mp3StreamSDFile.pdf)
