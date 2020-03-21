@@ -106,8 +106,11 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
     BOOLEAN exit = OS_FALSE;
     INT8U iteration = 0;
     const INT8U progressSampleRate = 40;
-    const INT8U fastForwardMultiplier = 20;
-    const INT8U rewindMultiplier = 20;
+    const INT8U defaultPlaybackMultiplier = 20;
+    INT8U playbackMultiplier = defaultPlaybackMultiplier;
+
+    size_t startTicks = 0;
+    BOOLEAN playbackSpeedChanged = OS_FALSE;
 
     INT32S bytesAvailable = dataFile.available();
     const INT32U fileSize = dataFile.size();
@@ -123,30 +126,57 @@ void Mp3StreamSDFile(HANDLE hMp3, char *pFilename)
             memcpy(songTitle, current->trackName, SONGLEN);
             break;
         case PC_PLAY:
+            if(OS_TRUE == playbackSpeedChanged) {
+                playbackMultiplier = defaultPlaybackMultiplier;
+                startTicks = 0;
+                playbackSpeedChanged = OS_FALSE;
+            }
             exit = writeNextSample(hMp3);
             break;
         case PC_PAUSE:
             OSTimeDly(1);
             continue;
         case PC_FF:
-            if(dataFile.size() - dataFile.position() > fastForwardMultiplier * MP3_DECODER_BUF_SIZE) {
-                dataFile.seek(dataFile.position() + fastForwardMultiplier * MP3_DECODER_BUF_SIZE);
+            if(OS_FALSE == playbackSpeedChanged) {
+                startTicks = OSTimeGet();
+                playbackSpeedChanged = OS_TRUE;
+            }
+
+            // Calculate how much time has been spent holding fast forward
+            if(((OSTimeGet() - startTicks) >= (2 * OS_TICKS_PER_SEC)) && playbackMultiplier < (defaultPlaybackMultiplier << 2)) {
+                playbackMultiplier *= 2;
+                startTicks = OSTimeGet();
+            }
+
+            if(dataFile.size() - dataFile.position() > playbackMultiplier * MP3_DECODER_BUF_SIZE) {
+                dataFile.seek(dataFile.position() + playbackMultiplier * MP3_DECODER_BUF_SIZE);
             }
             else {
                 dataFile.seek(dataFile.size() - MP3_DECODER_BUF_SIZE);
             }
 
-            exit = writeNextSample(hMp3);
+            OSTimeDly(5);
             break;
         case PC_RWD:
-            if(dataFile.position() > rewindMultiplier * MP3_DECODER_BUF_SIZE) {
-                dataFile.seek(dataFile.position() - rewindMultiplier * MP3_DECODER_BUF_SIZE);
+            if(OS_FALSE == playbackSpeedChanged) {
+                startTicks = OSTimeGet();
+                playbackSpeedChanged = OS_TRUE;
+            }
+
+            // Calculate how much time has been spent holding rewind
+            if(((OSTimeGet() - startTicks) >= (2 * OS_TICKS_PER_SEC)) && playbackMultiplier < (defaultPlaybackMultiplier << 2)) {
+                playbackMultiplier *= 2;
+                startTicks = OSTimeGet();
+            }
+
+            if(dataFile.position() > playbackMultiplier * MP3_DECODER_BUF_SIZE) {
+                dataFile.seek(dataFile.position() - playbackMultiplier * MP3_DECODER_BUF_SIZE);
             }
             else {
                 dataFile.seek(0);
             }
 
-            exit = writeNextSample(hMp3);
+            OSTimeDly(5);
             break;
         default:
             break;
